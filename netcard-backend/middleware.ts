@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { NextFetchEvent } from 'next/server'
 import { clerkMiddleware } from '@clerk/nextjs/server'
 
-export default function middleware(request: NextRequest, event: unknown) {
+export default function middleware(request: NextRequest, event: NextFetchEvent) {
   const host = request.headers.get('host') ?? ''
 
   // admin.pplai.app → rewrite to /admin/*
