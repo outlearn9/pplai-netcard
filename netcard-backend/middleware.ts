@@ -1,13 +1,17 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { clerkMiddleware } from '@clerk/nextjs/server'
 
-/**
- * NetCard Middleware
- * 
- * Bypasses Clerk authentication if NEXT_PUBLIC_MOCK_AUTH is enabled.
- * This prevents 500 errors when working without valid API keys.
- */
-export default function middleware(request: any, event: any) {
+export default function middleware(request: NextRequest, event: unknown) {
+  const host = request.headers.get('host') ?? ''
+
+  // admin.pplai.app → rewrite to /admin/*
+  if (host.startsWith('admin.')) {
+    const url = request.nextUrl.clone()
+    const path = url.pathname === '/' ? '/admin' : `/admin${url.pathname}`
+    url.pathname = path
+    return NextResponse.rewrite(url)
+  }
+
   if (process.env.NEXT_PUBLIC_MOCK_AUTH === 'true') {
     return NextResponse.next()
   }
