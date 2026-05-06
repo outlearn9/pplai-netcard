@@ -699,7 +699,7 @@ export default function AdminPage() {
       })
       const d = await res.json()
       if (d.success) {
-        const s: Session = { key: keyInput, email: d.data.email, role: d.data.role }
+        const s: Session = { key: d.data.token, email: d.data.email, role: d.data.role }
         sessionStorage.setItem('pplai_admin_sess', JSON.stringify(s))
         setSess(s)
       } else { setLoginErr('Invalid email or password') }

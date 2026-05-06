@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return ok({ email: normalEmail, role: user.role ?? 'admin' })
+    return ok({ email: normalEmail, role: user.role ?? 'admin', token: ADMIN_SECRET })
   } catch (e) {
     return handleError(e)
   }
