@@ -5,11 +5,10 @@ import { clerkMiddleware } from '@clerk/nextjs/server'
 export default function middleware(request: NextRequest, event: NextFetchEvent) {
   const host = request.headers.get('host') ?? ''
 
-  // admin.pplai.app → rewrite to /admin/*
-  if (host.startsWith('admin.')) {
+  // admin.pplai.app → rewrite to /admin/* (but leave /api/* unchanged)
+  if (host.startsWith('admin.') && !request.nextUrl.pathname.startsWith('/api')) {
     const url = request.nextUrl.clone()
-    const path = url.pathname === '/' ? '/admin' : `/admin${url.pathname}`
-    url.pathname = path
+    url.pathname = url.pathname === '/' ? '/admin' : `/admin${url.pathname}`
     return NextResponse.rewrite(url)
   }
 
