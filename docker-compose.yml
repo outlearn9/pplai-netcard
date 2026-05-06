@@ -1,0 +1,42 @@
+version: '3.8'
+
+# PPL.AI - Local Database Testing Environment
+# This spins up a Supabase-compliant PostgreSQL instance. 
+# For the FULL Supabase suite (Studio, Auth, Realtime, REST API), 
+# we heavily recommend running `npx supabase start` utilizing the Supabase CLI instead.
+# However, this docker-compose provides the baseline database for integration testing.
+
+services:
+  db:
+    image: supabase/postgres:15.1.1.78
+    container_name: ppl_ai_postgres
+    healthcheck:
+      test: pg_isready -U postgres -h localhost
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: postgres_password
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  # Optional pgAdmin to view your local containerized tables visually
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: ppl_ai_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@ppl.ai
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+    restart: unless-stopped
+
+volumes:
+  db-data:

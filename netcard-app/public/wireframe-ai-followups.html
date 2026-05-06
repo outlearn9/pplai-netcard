@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Followups — Pencil Wireframe</title>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&display=swap" rel="stylesheet">
+
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #f5f0e8;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 40px 20px;
+    gap: 60px;
+    flex-wrap: wrap;
+    font-family: 'Caveat', cursive;
+  }
+
+  .page-title {
+    width: 100%;
+    text-align: center;
+    font-family: 'Caveat', cursive;
+    font-size: 22px;
+    color: #555;
+    margin-bottom: -20px;
+    letter-spacing: 1px;
+  }
+
+  .frame-label {
+    text-align: center;
+    font-family: 'Caveat', cursive;
+    font-size: 15px;
+    color: #999;
+    margin-top: 10px;
+    letter-spacing: 0.5px;
+  }
+
+  .phone-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .phone {
+    position: relative;
+    width: 320px;
+    background: #fdf9f3;
+    border-radius: 32px;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 2px #bbb,
+      0 0 0 3.5px #fdf9f3,
+      0 0 0 5px #999,
+      4px 8px 32px rgba(0,0,0,0.13);
+  }
+
+  /* ---- internal layout ---- */
+  .inner {
+    padding: 14px 18px 24px;
+    position: relative;
+  }
+
+  .status {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+    padding: 0 2px;
+  }
+  .status-time { font-size: 13px; color: #555; font-weight: 600; }
+  .status-icons { display: flex; gap: 6px; align-items: center; }
+  .bar { display: flex; align-items: flex-end; gap: 2px; }
+  .bar span { display: block; width: 3px; background: #555; border-radius: 1px; }
+
+  /* header */
+  .hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+  .hdr-left h1 { font-size: 28px; font-weight: 700; color: #222; line-height: 1.1; }
+  .hdr-left p  { font-size: 13px; color: #888; margin-top: 2px; }
+  .hdr-icon { width: 38px; height: 38px; border-radius: 50%; background: rgba(90,80,200,0.1); display: flex; align-items: center; justify-content: center; }
+
+  /* filter row */
+  .filter-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .filter-btn { width: 38px; height: 38px; border-radius: 10px; background: #eee; display: flex; align-items: center; justify-content: center; position: relative; flex-shrink: 0; }
+  .filter-btn .dot { position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; border-radius: 50%; background: #5a50c8; border: 1.5px solid #fdf9f3; }
+  .event-pill { flex: 1; background: #eee; border-radius: 10px; padding: 9px 12px; display: flex; align-items: center; gap: 7px; }
+  .event-pill .dot-green { width: 7px; height: 7px; border-radius: 50%; background: #3ddc84; flex-shrink: 0; }
+  .event-pill span { flex: 1; font-size: 12px; color: #444; }
+  .chevron { font-size: 13px; color: #888; }
+
+  /* card */
+  .card {
+    background: #eee8da;
+    border-radius: 16px;
+    padding: 13px;
+    margin-bottom: 12px;
+    position: relative;
+  }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .card-top-left { display: flex; gap: 9px; align-items: center; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0; }
+  .av-purple { background: linear-gradient(135deg, #7c6fd0 0%, #a78bfa 100%); }
+  .av-green  { background: linear-gradient(135deg, #3ddc84 0%, #22c55e 100%); color: #111 !important; }
+  .av-amber  { background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); }
+  .name-row { display: flex; align-items: center; gap: 5px; }
+  .name-row strong { font-size: 14px; color: #222; font-weight: 700; }
+  .bm { font-size: 12px; }
+  .role-txt { font-size: 11px; color: #888; }
+  .card-top-right { display: flex; align-items: center; gap: 5px; }
+  .priority { border-radius: 100px; padding: 3px 9px; font-size: 10px; font-weight: 600; display: flex; align-items: center; gap: 3px; }
+  .p-high   { background: rgba(232,90,79,0.12); color: #e85a4f; }
+  .p-med    { background: rgba(255,181,71,0.12); color: #b57c00; }
+  .p-low    { background: #e0dbd0; color: #888; }
+  .dismiss-x { width: 24px; height: 24px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #666; cursor: pointer; }
+
+  /* message box */
+  .msg-box { background: #e0d9cc; border-radius: 10px; padding: 10px 34px 10px 10px; margin-bottom: 9px; position: relative; }
+  .msg-box p { font-size: 12px; color: #333; line-height: 1.5; margin-bottom: 5px; }
+  .msg-box small { font-size: 10px; color: #888; }
+  .copy-btn { position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; background: #ccc; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #666; }
+
+  /* send row */
+  .send-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 6px; }
+  .send-btn { border-radius: 8px; padding: 7px 0; font-size: 11px; font-weight: 700; color: #fff; display: flex; align-items: center; justify-content: center; gap: 3px; font-family: 'Caveat', cursive; }
+  .btn-wa    { background: #25D366; }
+  .btn-sms   { background: #e85a4f; }
+  .btn-email { background: #5a50c8; }
+  .call-row { text-align: center; font-size: 11px; color: #888; padding: 5px 0; border-top: 1px dashed #ccc; margin-top: 2px; }
+
+  /* ========== FILTER SHEET ========== */
+  .sheet-wrap { display: flex; flex-direction: column; }
+  .sheet {
+    width: 320px;
+    background: #fdf9f3;
+    border-radius: 20px;
+    padding: 16px 18px 22px;
+    position: relative;
+  }
+  .sheet-handle { width: 36px; height: 4px; background: #ccc; border-radius: 2px; margin: 0 auto 16px; }
+  .sheet-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .sheet-hdr span { font-size: 18px; font-weight: 700; color: #222; }
+  .sheet-close { width: 26px; height: 26px; border-radius: 50%; background: #e8e2d8; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #666; }
+
+  .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 20px; }
+  .stat-box { border-radius: 12px; padding: 10px 0; text-align: center; }
+  .stat-box .val { font-size: 24px; font-weight: 700; line-height: 1; }
+  .stat-box .lbl { font-size: 10px; color: #888; margin-top: 3px; }
+  .s-indigo { background: rgba(90,80,200,0.1); }  .s-indigo .val { color: #5a50c8; }
+  .s-green  { background: rgba(61,220,132,0.1); } .s-green  .val { color: #1a9e57; }
+  .s-amber  { background: rgba(245,158,11,0.1); } .s-amber  .val { color: #b57c00; }
+
+  .section-label { font-size: 11px; font-weight: 700; color: #aaa; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 9px; }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 18px; }
+  .chip { border-radius: 100px; padding: 5px 13px; font-size: 12px; font-weight: 600; border: 1.5px solid #ccc; color: #888; background: transparent; font-family: 'Caveat', cursive; }
+  .chip.active-ind { border-color: #5a50c8; color: #5a50c8; background: rgba(90,80,200,0.08); }
+  .chip.active-cor { border-color: #e85a4f; color: #e85a4f; background: rgba(232,90,79,0.08); }
+  .chip.active-amb { border-color: #b57c00; color: #b57c00; background: rgba(245,158,11,0.08); }
+  .chip.active-muted { border-color: #888; color: #666; background: rgba(0,0,0,0.05); }
+
+  .toggle-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .toggle-row .lbl { font-size: 14px; color: #333; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+  .toggle { width: 42px; height: 24px; background: #f59e0b; border-radius: 100px; position: relative; }
+  .toggle .knob { position: absolute; top: 2px; left: 20px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.25); }
+  .toggle.off { background: #ddd; }
+  .toggle.off .knob { left: 2px; }
+
+  .sheet-btns { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; }
+  .btn-reset { border-radius: 10px; padding: 11px 0; border: 1.5px solid #ccc; background: transparent; color: #888; font-size: 14px; font-weight: 700; font-family: 'Caveat', cursive; text-align: center; }
+  .btn-apply { border-radius: 10px; padding: 11px 0; background: #5a50c8; color: #fff; font-size: 14px; font-weight: 700; font-family: 'Caveat', cursive; text-align: center; }
+
+  /* annotation arrows */
+  .annotations {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+
+  /* side annotations */
+  .annot {
+    position: absolute;
+    font-size: 11px;
+    color: #888;
+    white-space: nowrap;
+    font-family: 'Caveat', cursive;
+  }
+  .annot-line {
+    position: absolute;
+    border-top: 1px dashed #bbb;
+  }
+</style>
+</head>
+<body>
+
+<p class="page-title">AI Followups — Pencil Wireframe</p>
+
+<!-- ===== SCREEN 1: Main ===== -->
+<div class="phone-wrap">
+  <div class="phone" id="phone1" style="height: 680px; overflow-y: auto;">
+    <div class="inner">
+
+      <!-- status bar -->
+      <div class="status">
+        <span class="status-time">9:41</span>
+        <div class="status-icons">
+          <div class="bar">
+            <span style="height:5px; opacity:.4"></span>
+            <span style="height:7px; opacity:.6"></span>
+            <span style="height:9px; opacity:.8"></span>
+            <span style="height:11px;"></span>
+          </div>
+          <svg width="22" height="11" viewBox="0 0 22 11" fill="none">
+            <rect x=".5" y=".5" width="19" height="10" rx="3" stroke="#555" stroke-opacity=".4"/>
+            <rect x="2" y="2" width="15" height="7" rx="1.5" fill="#555"/>
+            <rect x="20" y="3.5" width="2" height="4" rx="1" fill="#555" opacity=".5"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- header — filter icon moved to top-right thumb zone -->
+      <div class="hdr">
+        <div class="hdr-left">
+          <h1>AI Followups</h1>
+          <p>2 pending · 1 sent</p>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <!-- sparkles -->
+          <div class="hdr-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5a50c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m12 3-1.9 5.8a2 2 0 0 1-1.287 1.288L3 12l5.8 1.9a2 2 0 0 1 1.288 1.287L12 21l1.9-5.8a2 2 0 0 1 1.287-1.288L21 12l-5.8-1.9a2 2 0 0 1-1.288-1.287z"/>
+            </svg>
+          </div>
+          <!-- filter icon — right thumb zone -->
+          <div class="filter-btn" style="background:rgba(90,80,200,0.1); border:1.5px solid #5a50c8;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5a50c8" stroke-width="2.2" stroke-linecap="round">
+              <line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/>
+              <line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/>
+              <line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/>
+              <circle cx="12" cy="4" r="2" fill="#5a50c8"/><circle cx="10" cy="12" r="2" fill="#5a50c8"/><circle cx="14" cy="20" r="2" fill="#5a50c8"/>
+            </svg>
+            <div class="dot"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- event dropdown — full width now -->
+      <div class="filter-row" style="margin-bottom:14px;">
+        <div class="event-pill" style="flex:1;">
+          <div class="dot-green"></div>
+          <span>TechConnect Summit 2025</span>
+          <span class="chevron">&#8964;</span>
+        </div>
+      </div>
+
+      <!-- CARD 1 -->
+      <div class="card">
+        <div class="card-top">
+          <div class="card-top-left">
+            <div class="avatar av-purple">SR</div>
+            <div>
+              <div class="name-row">
+                <strong>Sarah Raines</strong>
+                <span class="bm">&#9733;</span>
+              </div>
+              <div class="role-txt">Product Manager · Stripe</div>
+            </div>
+          </div>
+          <div class="card-top-right">
+            <div class="priority p-high"><span>&#9679;</span> High</div>
+            <div class="dismiss-x">&#10005;</div>
+          </div>
+        </div>
+        <div class="msg-box">
+          <p>Hi Sarah, great connecting at TechConnect! I'd love to share our API pricing deck — would a 20-min call work this week?</p>
+          <small>Based on: Stripe evaluation timeline mentioned in notes</small>
+          <div class="copy-btn">&#9112;</div>
+        </div>
+        <div class="send-row">
+          <div class="send-btn btn-wa">&#9993; WA</div>
+          <div class="send-btn btn-sms">&#9993; SMS</div>
+          <div class="send-btn btn-email">&#9993; Email</div>
+        </div>
+        <div class="call-row">&#9990; Call instead</div>
+      </div>
+
+      <!-- CARD 2 — sent state -->
+      <div class="card" style="opacity:.6;">
+        <div class="card-top">
+          <div class="card-top-left">
+            <div class="avatar av-green">MK</div>
+            <div>
+              <div class="name-row"><strong>Marcus Kim</strong></div>
+              <div class="role-txt">Head of Engineering · Linear</div>
+            </div>
+          </div>
+          <div class="card-top-right">
+            <div class="priority p-med"><span>&#9679;</span> Medium</div>
+          </div>
+        </div>
+        <div class="msg-box">
+          <p>Marcus, loved your take on dev tooling at the panel. Would love to explore an integration!</p>
+          <small>Based on: #devtools tag & panel conversation</small>
+          <div class="copy-btn">&#9112;</div>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:center; gap:6px; padding:9px 0; background:rgba(61,220,132,0.12); border-radius:8px;">
+          <span style="color:#1a9e57; font-size:13px; font-weight:700;">&#10003; Sent via WhatsApp</span>
+        </div>
+      </div>
+
+      <!-- CARD 3 -->
+      <div class="card">
+        <div class="card-top">
+          <div class="card-top-left">
+            <div class="avatar av-amber">AT</div>
+            <div>
+              <div class="name-row">
+                <strong>Anika Torres</strong>
+                <span class="bm">&#9733;</span>
+              </div>
+              <div class="role-txt">Founder · Bloom AI</div>
+            </div>
+          </div>
+          <div class="card-top-right">
+            <div class="priority p-low"><span>&#9679;</span> Low</div>
+            <div class="dismiss-x">&#10005;</div>
+          </div>
+        </div>
+        <div class="msg-box">
+          <p>Anika, it was inspiring to hear about Bloom AI! Happy to intro you to investors in our network.</p>
+          <small>Based on: #seed tag & intro offer noted</small>
+          <div class="copy-btn">&#9112;</div>
+        </div>
+        <div class="send-row">
+          <div class="send-btn btn-wa">&#9993; WA</div>
+          <div class="send-btn btn-sms">&#9993; SMS</div>
+          <div class="send-btn btn-email">&#9993; Email</div>
+        </div>
+        <div class="call-row">&#9990; Call instead</div>
+      </div>
+
+    </div>
+  </div>
+  <div class="frame-label">Screen 1 — Main List</div>
+</div>
+
+
+<!-- ===== SCREEN 2: Filter Sheet ===== -->
+<div class="phone-wrap">
+  <div class="phone" id="phone2" style="height:680px; overflow:hidden;">
+
+    <!-- dimmed main underneath -->
+    <div style="padding: 14px 18px; opacity: 0.25; pointer-events:none; user-select:none;">
+      <div class="status"><span class="status-time">9:41</span></div>
+      <div class="hdr">
+        <div class="hdr-left"><h1>AI Followups</h1><p>2 pending · 1 sent</p></div>
+        <div style="display:flex;gap:8px;"><div class="hdr-icon" style="width:34px;height:34px;"></div><div class="filter-btn" style="background:rgba(90,80,200,0.1);border:1.5px solid #5a50c8;"></div></div>
+      </div>
+      <div class="filter-row"><div class="event-pill" style="flex:1;"><div class="dot-green"></div><span>TechConnect Summit 2025</span></div></div>
+      <div class="card" style="height:110px; border-radius:16px; background:#e8e0d0;"></div>
+      <div class="card" style="height:80px; border-radius:16px; background:#e8e0d0; margin-top:-4px;"></div>
+    </div>
+
+    <!-- dark overlay -->
+    <div style="position:absolute; inset:0; background:rgba(0,0,0,0.45); z-index:5;"></div>
+
+    <!-- sheet -->
+    <div style="position:absolute; bottom:0; left:0; right:0; z-index:10;">
+      <div class="sheet">
+        <div class="sheet-handle"></div>
+
+        <div class="sheet-hdr">
+          <span>Filter &amp; Sort</span>
+          <div class="sheet-close">&#10005;</div>
+        </div>
+
+        <!-- stats -->
+        <div class="stats-row">
+          <div class="stat-box s-indigo"><div class="val">3</div><div class="lbl">Total</div></div>
+          <div class="stat-box s-green"> <div class="val">1</div><div class="lbl">Sent</div></div>
+          <div class="stat-box s-amber"> <div class="val">2</div><div class="lbl">Bookmarked</div></div>
+        </div>
+
+        <!-- sort -->
+        <div class="section-label">Sort by</div>
+        <div class="chip-row">
+          <div class="chip active-ind">Priority</div>
+          <div class="chip">Name</div>
+          <div class="chip">Recent</div>
+        </div>
+
+        <!-- priority -->
+        <div class="section-label">Priority</div>
+        <div class="chip-row">
+          <div class="chip active-cor">&#9679; High</div>
+          <div class="chip active-amb">&#9679; Medium</div>
+          <div class="chip">&#9679; Low</div>
+        </div>
+
+        <!-- status -->
+        <div class="section-label">Status</div>
+        <div class="chip-row">
+          <div class="chip active-ind">Pending</div>
+          <div class="chip">Sent</div>
+        </div>
+
+        <!-- bookmarked toggle -->
+        <div class="toggle-row">
+          <div class="lbl">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="2"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+            Bookmarked only
+          </div>
+          <div class="toggle"><div class="knob"></div></div>
+        </div>
+
+        <!-- buttons -->
+        <div class="sheet-btns">
+          <div class="btn-reset">Reset</div>
+          <div class="btn-apply">Apply Filters</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="frame-label">Screen 2 — Filter Sheet Open</div>
+</div>
+
+
+<!-- ===== SCREEN 3: Annotations ===== -->
+<div class="phone-wrap">
+  <div class="phone" id="phone3" style="height:680px; overflow:hidden;">
+    <div class="inner">
+
+      <div class="status"><span class="status-time">9:41</span></div>
+
+      <div class="hdr">
+        <div class="hdr-left"><h1>AI Followups</h1><p>2 pending · 1 sent</p></div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <div class="hdr-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5a50c8" stroke-width="2" stroke-linecap="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.287 1.288L3 12l5.8 1.9a2 2 0 0 1 1.288 1.287L12 21l1.9-5.8a2 2 0 0 1 1.287-1.288L21 12l-5.8-1.9a2 2 0 0 1-1.288-1.287z"/></svg></div>
+          <div class="filter-btn" id="ann-filter" style="background:rgba(90,80,200,0.1); border:1.5px solid #5a50c8;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5a50c8" stroke-width="2.2" stroke-linecap="round">
+              <line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/>
+              <line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/>
+              <line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/>
+              <circle cx="12" cy="4" r="2" fill="#5a50c8"/><circle cx="10" cy="12" r="2" fill="#5a50c8"/><circle cx="14" cy="20" r="2" fill="#5a50c8"/>
+            </svg>
+            <div class="dot"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="filter-row">
+        <div class="event-pill" style="flex:1;">
+          <div class="dot-green"></div>
+          <span>TechConnect Summit 2025</span>
+          <span class="chevron">&#8964;</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <div class="card-top-left">
+            <div class="avatar av-purple">SR</div>
+            <div>
+              <div class="name-row">
+                <strong>Sarah Raines</strong>
+                <span class="bm" id="ann-bm">&#9733;</span>
+              </div>
+              <div class="role-txt">Product Manager · Stripe</div>
+            </div>
+          </div>
+          <div class="card-top-right">
+            <div class="priority p-high" id="ann-pri"><span>&#9679;</span> High</div>
+            <div class="dismiss-x" id="ann-x">&#10005;</div>
+          </div>
+        </div>
+        <div class="msg-box" id="ann-msg">
+          <p>Hi Sarah, great connecting at TechConnect! I'd love to share our API pricing deck — would a 20-min call work this week?</p>
+          <small>Based on: Stripe evaluation timeline mentioned in notes</small>
+          <div class="copy-btn" id="ann-copy">&#9112;</div>
+        </div>
+        <div class="send-row" id="ann-send">
+          <div class="send-btn btn-wa">&#9993; WA</div>
+          <div class="send-btn btn-sms">&#9993; SMS</div>
+          <div class="send-btn btn-email">&#9993; Email</div>
+        </div>
+        <div class="call-row" id="ann-call">&#9990; Call instead</div>
+      </div>
+
+      <div class="card" style="opacity:.4; height:55px; border-radius:16px;"></div>
+      <div class="card" style="opacity:.2; height:45px; border-radius:16px; margin-top:-4px;"></div>
+    </div>
+
+    <!-- SVG annotations overlay -->
+    <svg style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible;" id="ann-svg">
+      <!-- filter btn arrow — top-right thumb zone -->
+      <line x1="296" y1="75" x2="340" y2="58" stroke="#e85a4f" stroke-width="1.2" stroke-dasharray="4,3"/>
+      <text x="342" y="55" font-family="Caveat" font-size="11" fill="#e85a4f">filter icon</text>
+      <text x="342" y="67" font-family="Caveat" font-size="11" fill="#e85a4f">thumb zone ✓</text>
+
+      <!-- bookmark -->
+      <line x1="157" y1="195" x2="340" y2="180" stroke="#b57c00" stroke-width="1.2" stroke-dasharray="4,3"/>
+      <text x="342" y="184" font-family="Caveat" font-size="11" fill="#b57c00">bookmarked</text>
+
+      <!-- X dismiss -->
+      <line x1="294" y1="193" x2="340" y2="205" stroke="#888" stroke-width="1.2" stroke-dasharray="4,3"/>
+      <text x="342" y="209" font-family="Caveat" font-size="11" fill="#888">dismiss card</text>
+
+      <!-- copy inside box -->
+      <line x1="271" y1="248" x2="340" y2="232" stroke="#555" stroke-width="1.2" stroke-dasharray="4,3"/>
+      <text x="342" y="236" font-family="Caveat" font-size="11" fill="#555">copy msg</text>
+
+      <!-- send row -->
+      <line x1="160" y1="330" x2="340" y2="325" stroke="#5a50c8" stroke-width="1.2" stroke-dasharray="4,3"/>
+      <text x="342" y="329" font-family="Caveat" font-size="11" fill="#5a50c8">1-tap send</text>
+
+      <!-- call row -->
+      <line x1="90" y1="350" x2="-30" y2="358" stroke="#888" stroke-width="1.2" stroke-dasharray="4,3"/>
+      <text x="-35" y="362" font-family="Caveat" font-size="11" fill="#888" text-anchor="end">tel: deep link</text>
+
+      <!-- AI reason -->
+      <line x1="120" y1="285" x2="-30" y2="295" stroke="#1a9e57" stroke-width="1.2" stroke-dasharray="4,3"/>
+      <text x="-35" y="299" font-family="Caveat" font-size="11" fill="#1a9e57" text-anchor="end">AI rationale</text>
+    </svg>
+  </div>
+  <div class="frame-label">Screen 3 — Annotated</div>
+</div>
+
+
+<!-- ===== SCREEN 4: LHS Drawer ===== -->
+<div class="phone-wrap">
+  <div class="phone" id="phone4" style="height:680px; overflow:hidden;">
+
+    <!-- dimmed main content underneath (right side) -->
+    <div style="padding: 14px 18px; opacity: 0.22; pointer-events:none; user-select:none; margin-left: 240px;">
+      <div class="status"><span class="status-time">9:41</span></div>
+      <div class="hdr"><div class="hdr-left"><h1>AI Followups</h1><p>2 pending · 1 sent</p></div></div>
+      <div class="card" style="height:130px; border-radius:16px; background:#e8e0d0; margin-top:12px;"></div>
+      <div class="card" style="height:100px; border-radius:16px; background:#e8e0d0; margin-top:8px;"></div>
+      <div class="card" style="height:80px; border-radius:16px; background:#e8e0d0; margin-top:8px;"></div>
+    </div>
+
+    <!-- dark overlay -->
+    <div style="position:absolute; inset:0; background:rgba(0,0,0,0.4); z-index:5;"></div>
+
+    <!-- LHS drawer panel -->
+    <div style="
+      position:absolute; top:0; left:0; bottom:0; width:240px;
+      background:#fdf9f3; z-index:10;
+      padding: 20px 18px 24px;
+      display:flex; flex-direction:column;
+      box-shadow: 4px 0 24px rgba(0,0,0,0.18);
+    ">
+      <!-- drawer header -->
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:22px;">
+        <span style="font-size:18px; font-weight:700; color:#222;">Filters</span>
+        <div class="sheet-close" style="width:26px;height:26px;border-radius:50%;background:#e8e2d8;display:flex;align-items:center;justify-content:center;font-size:14px;color:#666;">&#10005;</div>
+      </div>
+
+      <!-- stats -->
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:22px;">
+        <div class="stat-box s-indigo"><div class="val" style="font-size:20px;">3</div><div class="lbl">Total</div></div>
+        <div class="stat-box s-green"> <div class="val" style="font-size:20px;">1</div><div class="lbl">Sent</div></div>
+        <div class="stat-box s-amber"> <div class="val" style="font-size:20px;">2</div><div class="lbl">&#9733;</div></div>
+      </div>
+
+      <!-- divider -->
+      <div style="height:1px; background:#e8e2d8; margin-bottom:18px;"></div>
+
+      <!-- sort -->
+      <div class="section-label">Sort by</div>
+      <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:18px;">
+        <div style="display:flex; align-items:center; gap:8px; padding:8px 10px; background:rgba(90,80,200,0.08); border-radius:9px; border:1.5px solid #5a50c8;">
+          <div style="width:14px;height:14px;border-radius:50%;border:2px solid #5a50c8;display:flex;align-items:center;justify-content:center;"><div style="width:6px;height:6px;border-radius:50%;background:#5a50c8;"></div></div>
+          <span style="font-size:13px; color:#5a50c8; font-weight:600;">Priority</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:9px; border:1.5px solid #e0dbd0;">
+          <div style="width:14px;height:14px;border-radius:50%;border:2px solid #ccc;"></div>
+          <span style="font-size:13px; color:#888;">Name</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:9px; border:1.5px solid #e0dbd0;">
+          <div style="width:14px;height:14px;border-radius:50%;border:2px solid #ccc;"></div>
+          <span style="font-size:13px; color:#888;">Recent</span>
+        </div>
+      </div>
+
+      <!-- divider -->
+      <div style="height:1px; background:#e8e2d8; margin-bottom:18px;"></div>
+
+      <!-- priority -->
+      <div class="section-label">Priority</div>
+      <div style="display:flex; flex-direction:column; gap:5px; margin-bottom:18px;">
+        <div style="display:flex; align-items:center; gap:8px; padding:7px 10px; background:rgba(232,90,79,0.08); border-radius:8px; border:1.5px solid #e85a4f;">
+          <svg width="13" height="13" viewBox="0 0 13 13"><rect x="1" y="1" width="11" height="11" rx="3" stroke="#e85a4f" stroke-width="1.5" fill="none"/><path d="M3.5 6.5l2 2 4-4" stroke="#e85a4f" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span style="font-size:12px; color:#e85a4f; font-weight:600;">&#9679; High</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; padding:7px 10px; background:rgba(245,158,11,0.08); border-radius:8px; border:1.5px solid #b57c00;">
+          <svg width="13" height="13" viewBox="0 0 13 13"><rect x="1" y="1" width="11" height="11" rx="3" stroke="#b57c00" stroke-width="1.5" fill="none"/><path d="M3.5 6.5l2 2 4-4" stroke="#b57c00" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span style="font-size:12px; color:#b57c00; font-weight:600;">&#9679; Medium</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; padding:7px 10px; border-radius:8px; border:1.5px solid #ddd;">
+          <svg width="13" height="13" viewBox="0 0 13 13"><rect x="1" y="1" width="11" height="11" rx="3" stroke="#ccc" stroke-width="1.5" fill="none"/></svg>
+          <span style="font-size:12px; color:#aaa;">&#9679; Low</span>
+        </div>
+      </div>
+
+      <!-- divider -->
+      <div style="height:1px; background:#e8e2d8; margin-bottom:16px;"></div>
+
+      <!-- bookmarked toggle -->
+      <div class="toggle-row" style="margin-bottom:0;">
+        <div class="lbl" style="font-size:13px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="2"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+          Bookmarked only
+        </div>
+        <div class="toggle"><div class="knob"></div></div>
+      </div>
+
+      <!-- spacer -->
+      <div style="flex:1;"></div>
+
+      <!-- apply button -->
+      <div class="btn-apply" style="text-align:center; padding:12px 0; border-radius:12px; margin-top:16px;">Apply Filters</div>
+      <div class="btn-reset" style="text-align:center; padding:9px 0; border-radius:12px; border:none; margin-top:8px; background:transparent; color:#aaa; font-size:12px;">Reset all</div>
+    </div>
+
+    <!-- arrow annotation pointing at drawer edge -->
+    <svg style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:11;" >
+      <line x1="241" y1="100" x2="310" y2="80" stroke="#e85a4f" stroke-width="1.2" stroke-dasharray="4,3"/>
+      <text x="312" y="84" font-family="Caveat" font-size="11" fill="#e85a4f">slides from left</text>
+      <line x1="241" y1="340" x2="310" y2="340" stroke="#5a50c8" stroke-width="1.2" stroke-dasharray="4,3"/>
+      <text x="312" y="344" font-family="Caveat" font-size="11" fill="#5a50c8">tap outside</text>
+      <text x="312" y="356" font-family="Caveat" font-size="11" fill="#5a50c8">to close</text>
+    </svg>
+  </div>
+  <div class="frame-label">Screen 4 — LHS Drawer (alt. design)</div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,58 @@
+# ── Dependencies ─────────────────────────────────────────────────────────────
+node_modules/
+netcard-app/node_modules/
+netcard-backend/node_modules/
+
+# ── Build outputs ─────────────────────────────────────────────────────────────
+netcard-app/dist/
+netcard-backend/.next/
+netcard-backend/out/
+
+# ── Lock files (noise, not code) ──────────────────────────────────────────────
+package-lock.json
+netcard-app/package-lock.json
+netcard-backend/package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ── TypeScript incremental cache ──────────────────────────────────────────────
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+netcard-backend/tsconfig.tsbuildinfo
+
+# ── Environment / secrets ─────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+netcard-backend/.env
+netcard-backend/.env.local
+netcard-backend/.env.*.local
+
+# ── Pencil design files (encrypted — use MCP tools, not Read) ─────────────────
+*.pen
+
+# ── Wireframe / prototype HTML (not production code) ─────────────────────────
+netcard-app/public/wireframe-*.html
+netcard-backend/supabase/wireframe-*.html
+
+# ── Static assets (images, fonts — not code) ──────────────────────────────────
+netcard-app/public/assets/
+
+# ── Vite / Next.js caches ─────────────────────────────────────────────────────
+netcard-app/.vite/
+netcard-backend/.cache/
+.turbo/
+
+# ── Coverage & test artefacts ─────────────────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ── OS & IDE noise ────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*

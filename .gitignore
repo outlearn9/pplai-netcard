@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+netcard-app/node_modules/
+netcard-backend/node_modules/
+
+# Build outputs
+netcard-app/dist/
+netcard-backend/.next/
+netcard-backend/out/
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+netcard-backend/.env
+netcard-backend/.env.local
+netcard-backend/.env.*.local
+netcard-app/.env
+netcard-app/.env.local
+netcard-app/.env.*.local
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Vite / Next.js caches
+netcard-app/.vite/
+netcard-backend/.cache/
+.turbo/
+
+# Design files (encrypted)
+*.pen
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Claude internal
+.claude/
