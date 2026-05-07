@@ -247,7 +247,9 @@ export default function AuthScreen({ onAuth }) {
       setSignupCode('')
       setPhase('signupOtp')
     } catch {
-      setSignupError('Network error. Please check your connection.')
+      // CORS or network failure (e.g. test Clerk instance) — fall back to hosted sign-up
+      window.location.href = `${AUTH_URL}/sign-up?email_address=${encodeURIComponent(signupEmail.trim())}`
+      return
     }
     setLoading(false)
   }
