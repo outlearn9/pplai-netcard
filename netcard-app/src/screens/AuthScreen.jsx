@@ -4,15 +4,6 @@ import { ArrowRight, ChevronDown, ArrowLeft, RotateCcw, User, Mail, Phone } from
 const API      = import.meta.env.VITE_API_URL  || ''
 const AUTH_URL = import.meta.env.VITE_AUTH_URL || 'http://localhost:3001'
 
-// Derive Clerk Frontend API URL from publishable key
-const CLERK_API = (() => {
-  const key = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || ''
-  if (!key) return ''
-  const parts = key.split('_')
-  if (parts.length < 3) return ''
-  try { return 'https://' + atob(parts[2]).replace(/\$$/, '') } catch { return '' }
-})()
-
 const COUNTRIES = [
   { code: 'IN', dial: '+91',  flag: '🇮🇳', name: 'India' },
   { code: 'US', dial: '+1',   flag: '🇺🇸', name: 'United States' },
@@ -142,7 +133,6 @@ export default function AuthScreen({ onAuth }) {
   const [signupName,  setSignupName]  = useState('')
   const [signupEmail, setSignupEmail] = useState('')
   const [signupPhone, setSignupPhone] = useState('')
-  const [signupId,    setSignupId]    = useState('')
   const [signupCode,  setSignupCode]  = useState('')
   const [signupError, setSignupError] = useState('')
 
@@ -186,56 +176,25 @@ export default function AuthScreen({ onAuth }) {
     setLoading(true)
     setSignupError('')
 
-    // Fallback: redirect to Clerk hosted sign-up if no Clerk API configured
-    if (!CLERK_API) {
-      localStorage.setItem('netcard_signup_name', signupName.trim())
-      window.location.href = `${AUTH_URL}/sign-up`
-      return
-    }
-
     try {
-      const nameParts = signupName.trim().split(' ')
-      const firstName = nameParts[0]
-      const lastName  = nameParts.slice(1).join(' ') || undefined
-
-      const body = {
-        email_address: signupEmail.trim().toLowerCase(),
-        first_name: firstName,
-        ...(lastName ? { last_name: lastName } : {}),
-        ...(signupPhone.trim() ? { phone_number: `${country.dial}${signupPhone.trim()}` } : {}),
-      }
-
-      const r = await fetch(`${CLERK_API}/v1/client/sign_ups`, {
+      const r = await fetch(`${API}/api/auth/send-otp`, {
         method: 'POST',
-        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          email: signupEmail.trim(),
+          name:  signupName.trim(),
+          phone: signupPhone.trim() ? `${country.dial}${signupPhone.trim()}` : undefined,
+        }),
       })
       const d = await r.json()
 
       if (!r.ok) {
-        const clerkErr = d?.errors?.[0]
-        if (clerkErr?.code === 'form_identifier_exists') {
-          setSignupError('This email is already registered. Sign in instead.')
-        } else {
-          setSignupError(clerkErr?.long_message || clerkErr?.message || 'Could not create account. Try again.')
-        }
+        setSignupError(d?.error || 'Could not send code. Please try again.')
         setLoading(false)
         return
       }
 
-      const id = d.response?.id
-      setSignupId(id)
-
-      // Send email OTP
-      await fetch(`${CLERK_API}/v1/client/sign_ups/${id}/prepare_email_address_verification`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ strategy: 'email_code' }),
-      })
-
-      // Pre-save name so onboarding can use it
+      // Pre-save profile data for onboarding
       const existing = JSON.parse(localStorage.getItem('netcard_my_profile') || '{}')
       localStorage.setItem('netcard_my_profile', JSON.stringify({
         ...existing,
@@ -247,48 +206,32 @@ export default function AuthScreen({ onAuth }) {
       setSignupCode('')
       setPhase('signupOtp')
     } catch {
-      // CORS or network failure (e.g. test Clerk instance) — fall back to hosted sign-up
-      window.location.href = `${AUTH_URL}/sign-up?email_address=${encodeURIComponent(signupEmail.trim())}`
-      return
+      setSignupError('Network error. Please check your connection.')
     }
     setLoading(false)
   }
 
   const verifySignupOtp = async () => {
-    if (signupCode.length < 6 || !signupId) return
+    if (signupCode.length < 6) return
     setLoading(true)
     setSignupError('')
 
     try {
-      const r = await fetch(`${CLERK_API}/v1/client/sign_ups/${signupId}/attempt_email_address_verification`, {
+      const r = await fetch(`${API}/api/auth/verify-otp`, {
         method: 'POST',
-        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: signupCode }),
+        body: JSON.stringify({ email: signupEmail.trim(), code: signupCode }),
       })
       const d = await r.json()
 
       if (!r.ok) {
-        const msg = d?.errors?.[0]?.long_message || d?.errors?.[0]?.message || 'Invalid code. Try again.'
-        setSignupError(msg)
+        setSignupError(d?.error || 'Invalid code. Please try again.')
         setLoading(false)
         return
       }
 
-      if (d.response?.status === 'complete') {
-        const sessionId = d.response?.created_session_id || d.client?.last_active_session_id
-        if (sessionId) {
-          await fetch(`${CLERK_API}/v1/client`, {
-            method: 'PATCH',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ session_id: sessionId }),
-          })
-        }
-        onAuth?.()
-      } else {
-        setSignupError('Verification incomplete. Please try again.')
-      }
+      // Redirect to Clerk sign-in token URL — sets session then comes back to app
+      window.location.href = d.data.token_url
     } catch {
       setSignupError('Network error. Please try again.')
     }
@@ -296,18 +239,9 @@ export default function AuthScreen({ onAuth }) {
   }
 
   const resendSignupOtp = async () => {
-    if (!signupId) return
     setSignupCode('')
     setSignupError('')
-    try {
-      await fetch(`${CLERK_API}/v1/client/sign_ups/${signupId}/prepare_email_address_verification`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ strategy: 'email_code' }),
-      })
-    } catch {}
-    setResendTimer(30)
+    await sendSignupOtp()
   }
 
   const sendOtp = () => {
