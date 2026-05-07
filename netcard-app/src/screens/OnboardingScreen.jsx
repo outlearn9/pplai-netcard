@@ -1,10 +1,19 @@
-import { useState } from 'react'
-import { Search, Gift } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { ArrowRight, ArrowLeft, User, Mail, Linkedin, Phone, Sparkles, Target } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || ''
 
+const STEPS = [
+  { id: 1, label: 'Identity',  emoji: '👤' },
+  { id: 2, label: 'Contact',   emoji: '📇' },
+  { id: 3, label: 'Goals',     emoji: '🎯' },
+]
+
 export default function OnboardingScreen({ navigate }) {
-  const [saving, setSaving] = useState(false)
+  const [step, setStep]       = useState(1)
+  const [dir,  setDir]        = useState(1)   // 1 = forward, -1 = back
+  const [anim, setAnim]       = useState(false)
+  const [saving, setSaving]   = useState(false)
 
   const [name,     setName]     = useState('')
   const [title,    setTitle]    = useState('')
@@ -15,9 +24,13 @@ export default function OnboardingScreen({ navigate }) {
   const [seeking,  setSeeking]  = useState('')
   const [offering, setOffering] = useState('')
 
-  const displayName = name.trim() || 'Your Name'
-  const displayTitle = title.trim() || 'Your Title'
-  const initials = displayName.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()
+  const initials = name.trim().split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?'
+
+  const goTo = (next) => {
+    setDir(next > step ? 1 : -1)
+    setAnim(true)
+    setTimeout(() => { setStep(next); setAnim(false) }, 200)
+  }
 
   const finish = async () => {
     setSaving(true)
@@ -38,148 +51,209 @@ export default function OnboardingScreen({ navigate }) {
         body: JSON.stringify(payload),
       })
     } catch {}
-
     localStorage.setItem('netcard_my_profile', JSON.stringify({
-      name:     payload.name,
-      title:    payload.role,
-      company:  payload.company,
-      email:    payload.email,
-      phone:    payload.phone,
-      linkedin: payload.linkedin_url,
-      seeking:  payload.seeking,
-      offering: payload.offering,
+      name: payload.name, title: payload.role, company: payload.company,
+      email: payload.email, phone: payload.phone, linkedin: payload.linkedin_url,
+      seeking: payload.seeking, offering: payload.offering,
     }))
-
     setSaving(false)
-    navigate('mycard')
+    navigate('home')
   }
 
   return (
     <div className="screen" style={{ background: 'var(--bg)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-      {/* Scrollable body */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px 0' }}>
-
-        {/* Welcome header */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--indigo)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>
-            Welcome to PPL AI
-          </div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.2 }}>
-            Your digital card is ready
-          </div>
-          <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
-            Fill in your details — the card updates live.
-          </div>
+      {/* Header */}
+      <div style={{ padding: '20px 20px 0', flexShrink: 0 }}>
+        {/* Progress dots */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 24 }}>
+          {STEPS.map(s => (
+            <div key={s.id} style={{
+              height: 4, borderRadius: 99,
+              flex: s.id <= step ? 1 : 0.4,
+              background: s.id <= step ? 'var(--indigo)' : 'var(--border)',
+              transition: 'all 0.4s cubic-bezier(0.34,1.56,0.64,1)',
+            }} />
+          ))}
         </div>
 
-        {/* Hero Card — live preview */}
-        <div style={{
-          borderRadius: 24, overflow: 'hidden', position: 'relative', height: 196,
-          background: 'linear-gradient(145deg, #2D2F6B 0%, #3D3080 45%, #252560 100%)',
-          boxShadow: '0 16px 48px rgba(45,47,107,0.4), 0 0 0 1px rgba(255,255,255,0.08)',
-          marginBottom: 18, flexShrink: 0,
-        }}>
-          {/* Glow blobs */}
-          <div style={{ position: 'absolute', top: -40, left: -30, width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle, rgba(129,140,248,0.5) 0%, transparent 70%)', filter: 'blur(28px)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', bottom: -40, right: 40, width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle, rgba(168,85,247,0.4) 0%, transparent 70%)', filter: 'blur(24px)', pointerEvents: 'none' }} />
-          {/* Grid texture */}
-          <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '24px 24px', pointerEvents: 'none' }} />
-
-          {/* Logo mark */}
-          <div style={{ position: 'absolute', top: 12, left: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ width: 20, height: 20, borderRadius: 6, background: 'linear-gradient(135deg,#6366F1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                <circle cx="4" cy="4" r="2.2" fill="white" opacity="0.9"/>
-                <circle cx="8.5" cy="4" r="2.2" fill="white" opacity="0.55"/>
-                <circle cx="6.5" cy="8.5" r="2.2" fill="white" opacity="0.72"/>
-              </svg>
-            </div>
-            <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: 1.2, textTransform: 'uppercase', fontFamily: 'var(--font-sans)' }}>NetCard</span>
-          </div>
-
-          {/* Avatar */}
-          <div style={{ position: 'absolute', left: 16, top: 40 }}>
-            <div style={{ width: 50, height: 50, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(99,102,241,0.6), rgba(168,85,247,0.6))', border: '1.5px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 16, fontWeight: 700, color: '#fff' }}>{initials}</span>
-            </div>
-          </div>
-
-          {/* Name / title — bottom left */}
-          <div style={{ position: 'absolute', left: 16, bottom: 14 }}>
-            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 600, color: name.trim() ? '#fff' : 'rgba(255,255,255,0.3)', letterSpacing: -0.5, lineHeight: 1.15 }}>
-              {displayName}
-            </div>
-            <div style={{ fontSize: 11, fontWeight: 500, color: title.trim() ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0.2)', marginTop: 2, fontFamily: 'var(--font-sans)' }}>
-              {displayTitle}
-            </div>
-            {company.trim() && (
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.38)', marginTop: 1, fontFamily: 'var(--font-sans)' }}>{company.trim()}</div>
-            )}
-          </div>
-
-          {/* QR — right side */}
-          <div style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-            <div style={{ background: 'rgba(255,255,255,0.97)', borderRadius: 12, padding: 9, boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
-              <svg width="80" height="80" viewBox="0 0 90 90" fill="none">
-                <rect x="2" y="2" width="28" height="28" rx="4" fill="#2D2F6B"/>
-                <rect x="7" y="7" width="18" height="18" rx="2" fill="white"/>
-                <rect x="11" y="11" width="10" height="10" rx="1" fill="#2D2F6B"/>
-                <rect x="60" y="2" width="28" height="28" rx="4" fill="#2D2F6B"/>
-                <rect x="65" y="7" width="18" height="18" rx="2" fill="white"/>
-                <rect x="69" y="11" width="10" height="10" rx="1" fill="#2D2F6B"/>
-                <rect x="2" y="60" width="28" height="28" rx="4" fill="#2D2F6B"/>
-                <rect x="7" y="65" width="18" height="18" rx="2" fill="white"/>
-                <rect x="11" y="69" width="10" height="10" rx="1" fill="#2D2F6B"/>
-                {[36,42,48,54,60,66,72,78].flatMap((x,xi) =>
-                  [36,42,48,54,60,66,72,78].map((y,yi) =>
-                    (xi+yi)%2===0 && !(x<34&&y<34) && !(x>58&&y<34) && !(x<34&&y>58)
-                      ? <rect key={`${x}${y}`} x={x} y={y} width="5" height="5" rx="1" fill="#2D2F6B"/> : null
-                  )
-                )}
-              </svg>
-            </div>
-            <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', fontWeight: 600, letterSpacing: 0.5, fontFamily: 'var(--font-sans)', textTransform: 'uppercase' }}>Scan to connect</span>
-          </div>
-
-          {/* Shimmer line */}
-          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, transparent, rgba(165,180,252,0.6), rgba(192,132,252,0.6), transparent)' }} />
+        {/* Step label */}
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--indigo)', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 4 }}>
+          Step {step} of {STEPS.length}
         </div>
-
-        {/* Form */}
-        <Section label="Identity">
-          <Field label="Full Name *" value={name} onChange={setName} placeholder="e.g. Alex Johnson" autoFocus />
-          <Field label="Title / Role" value={title} onChange={setTitle} placeholder="e.g. Product Manager" />
-          <Field label="Company" value={company} onChange={setCompany} placeholder="e.g. Acme Corp" />
-        </Section>
-
-        <Section label="Contact">
-          <Field label="Email" value={email} onChange={setEmail} placeholder="you@example.com" type="email" />
-          <Field label="Phone" value={phone} onChange={setPhone} placeholder="+1 555 000 0000" type="tel" />
-          <Field label="LinkedIn URL" value={linkedin} onChange={setLinkedin} placeholder="linkedin.com/in/yourname" />
-        </Section>
-
-        <Section label="Networking Pitch">
-          <Field label="What are you seeking?" value={seeking} onChange={setSeeking} placeholder="e.g. Investors, enterprise clients…" multiline />
-          <Field label="What are you offering?" value={offering} onChange={setOffering} placeholder="e.g. SaaS expertise, design services…" multiline />
-        </Section>
-
-        <div style={{ height: 20 }} />
       </div>
 
-      {/* Bottom CTA */}
-      <div style={{ padding: '12px 20px 28px', borderTop: '1px solid var(--border)', background: 'var(--bg)' }}>
-        <button
-          onClick={finish}
-          disabled={!name.trim() || saving}
-          className="btn-primary"
-          style={{ opacity: (!name.trim() || saving) ? 0.45 : 1 }}
-        >
-          {saving ? 'Creating your card…' : 'Create My Card →'}
-        </button>
-        {!name.trim() && (
-          <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
-            Enter your name to continue
+      {/* Animated content */}
+      <div style={{
+        flex: 1, overflowY: 'auto', padding: '0 20px',
+        opacity: anim ? 0 : 1,
+        transform: anim ? `translateX(${dir * 24}px)` : 'translateX(0)',
+        transition: 'opacity 0.2s ease, transform 0.2s ease',
+      }}>
+        {step === 1 && <Step1
+          name={name} setName={setName}
+          title={title} setTitle={setTitle}
+          company={company} setCompany={setCompany}
+          initials={initials}
+        />}
+        {step === 2 && <Step2
+          email={email} setEmail={setEmail}
+          phone={phone} setPhone={setPhone}
+          linkedin={linkedin} setLinkedin={setLinkedin}
+        />}
+        {step === 3 && <Step3
+          name={name} title={title} company={company}
+          seeking={seeking} setSeeking={setSeeking}
+          offering={offering} setOffering={setOffering}
+          initials={initials}
+        />}
+        <div style={{ height: 24 }} />
+      </div>
+
+      {/* Footer nav */}
+      <div style={{ padding: '12px 20px 32px', borderTop: '1px solid var(--border)', background: 'var(--bg)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', gap: 10 }}>
+          {step > 1 && (
+            <button onClick={() => goTo(step - 1)} className="btn-ghost"
+              style={{ flex: '0 0 48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ArrowLeft size={18} />
+            </button>
+          )}
+          {step < 3 ? (
+            <button
+              onClick={() => goTo(step + 1)}
+              disabled={step === 1 && !name.trim()}
+              className="btn-primary"
+              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                opacity: (step === 1 && !name.trim()) ? 0.4 : 1 }}
+            >
+              Continue <ArrowRight size={16} />
+            </button>
+          ) : (
+            <button onClick={finish} disabled={saving} className="btn-primary"
+              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              {saving ? 'Setting up…' : <><Sparkles size={16} /> Launch My Card</>}
+            </button>
+          )}
+        </div>
+        {step === 1 && !name.trim() && (
+          <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>Enter your name to continue</p>
+        )}
+        {step < 3 && (
+          <button onClick={() => goTo(step + 1)} style={{ width: '100%', background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer', marginTop: 8, padding: 4 }}>
+            Skip for now
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ── Step 1: Identity ── */
+function Step1({ name, setName, title, setTitle, company, setCompany, initials }) {
+  return (
+    <div>
+      {/* Avatar preview */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28, marginTop: 4 }}>
+        <div style={{
+          width: 64, height: 64, borderRadius: '50%', flexShrink: 0,
+          background: 'linear-gradient(135deg, var(--indigo), #a855f7)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 22, fontWeight: 800, color: '#fff', fontFamily: 'var(--font-sans)',
+          boxShadow: '0 8px 24px rgba(99,102,241,0.35)',
+        }}>
+          {initials}
+        </div>
+        <div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.15 }}>
+            {name.trim() || 'Your Name'}
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
+            {title.trim() || 'Your role'}{company.trim() ? ` · ${company.trim()}` : ''}
+          </div>
+        </div>
+      </div>
+
+      <Heading title="Who are you?" subtitle="This is how you'll appear on your digital card." />
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <Field icon={<User size={15} />} label="Full Name *" value={name} onChange={setName} placeholder="e.g. Alex Johnson" autoFocus />
+        <Field label="Title / Role" value={title} onChange={setTitle} placeholder="e.g. Founder & CEO" />
+        <Field label="Company" value={company} onChange={setCompany} placeholder="e.g. Acme Corp" />
+      </div>
+    </div>
+  )
+}
+
+/* ── Step 2: Contact ── */
+function Step2({ email, setEmail, phone, setPhone, linkedin, setLinkedin }) {
+  return (
+    <div>
+      <div style={{
+        width: 64, height: 64, borderRadius: 20, marginBottom: 20, marginTop: 4,
+        background: 'linear-gradient(135deg, #10b981, #059669)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: '0 8px 24px rgba(16,185,129,0.3)',
+      }}>
+        <Mail size={28} color="#fff" />
+      </div>
+
+      <Heading title="How to reach you?" subtitle="Let new contacts find you easily. All fields are optional." />
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <Field icon={<Mail size={15} />} label="Email" value={email} onChange={setEmail} placeholder="you@example.com" type="email" />
+        <Field icon={<Phone size={15} />} label="Phone" value={phone} onChange={setPhone} placeholder="+1 555 000 0000" type="tel" />
+        <Field icon={<Linkedin size={15} />} label="LinkedIn" value={linkedin} onChange={setLinkedin} placeholder="linkedin.com/in/yourname" />
+      </div>
+    </div>
+  )
+}
+
+/* ── Step 3: Goals ── */
+function Step3({ name, title, company, seeking, setSeeking, offering, setOffering, initials }) {
+  return (
+    <div>
+      <div style={{
+        width: 64, height: 64, borderRadius: 20, marginBottom: 20, marginTop: 4,
+        background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: '0 8px 24px rgba(245,158,11,0.3)',
+      }}>
+        <Target size={28} color="#fff" />
+      </div>
+
+      <Heading title="What's your goal?" subtitle="PPL AI uses this to generate smarter follow-ups for you." />
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <Field label="What are you seeking?" value={seeking} onChange={setSeeking}
+          placeholder="e.g. Angel investors, enterprise clients, co-founders…" multiline />
+        <Field label="What are you offering?" value={offering} onChange={setOffering}
+          placeholder="e.g. SaaS expertise, design services, intros to VCs…" multiline />
+      </div>
+
+      {/* Card preview */}
+      <div style={{
+        marginTop: 24, borderRadius: 16, overflow: 'hidden',
+        background: 'linear-gradient(135deg, #2D2F6B 0%, #3D3080 100%)',
+        padding: '16px', boxShadow: '0 12px 32px rgba(45,47,107,0.3)',
+      }}>
+        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 }}>Your card preview</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
+            background: 'rgba(99,102,241,0.5)', border: '1.5px solid rgba(255,255,255,0.2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 14, fontWeight: 700, color: '#fff',
+          }}>{initials}</div>
+          <div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, fontWeight: 600, color: '#fff' }}>{name || 'Your Name'}</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>{title || 'Your role'}{company ? ` · ${company}` : ''}</div>
+          </div>
+        </div>
+        {(seeking || offering) && (
+          <div style={{ marginTop: 10, padding: '8px 10px', background: 'rgba(255,255,255,0.07)', borderRadius: 8 }}>
+            {seeking && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: 3 }}>🔍 {seeking.slice(0, 60)}{seeking.length > 60 ? '…' : ''}</div>}
+            {offering && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>✨ {offering.slice(0, 60)}{offering.length > 60 ? '…' : ''}</div>}
           </div>
         )}
       </div>
@@ -187,36 +261,39 @@ export default function OnboardingScreen({ navigate }) {
   )
 }
 
-function Section({ label, children }) {
+function Heading({ title, subtitle }) {
   return (
     <div style={{ marginBottom: 20 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>{label}</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {children}
-      </div>
+      <div style={{ fontFamily: 'var(--font-serif)', fontSize: 26, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2, marginBottom: 6 }}>{title}</div>
+      <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{subtitle}</div>
     </div>
   )
 }
 
-function Field({ label, value, onChange, placeholder, type = 'text', multiline = false, autoFocus = false }) {
-  const shared = {
+function Field({ icon, label, value, onChange, placeholder, type = 'text', multiline = false, autoFocus = false }) {
+  const base = {
     width: '100%', boxSizing: 'border-box',
     background: 'var(--card)', color: 'var(--text-primary)',
-    border: '1.5px solid var(--border)', borderRadius: 10,
-    padding: '11px 13px', fontSize: 14, outline: 'none',
-    fontFamily: 'var(--font-sans)',
+    border: '1.5px solid var(--border)', borderRadius: 12,
+    padding: icon ? '11px 13px 11px 36px' : '11px 13px',
+    fontSize: 14, outline: 'none', fontFamily: 'var(--font-sans)',
   }
   return (
     <div>
-      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 5 }}>
-        {label}
+      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 5 }}>{label}</div>
+      <div style={{ position: 'relative' }}>
+        {icon && (
+          <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }}>
+            {icon}
+          </div>
+        )}
+        {multiline
+          ? <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={3}
+              style={{ ...base, resize: 'none', lineHeight: 1.5 }} />
+          : <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+              type={type} autoFocus={autoFocus} style={base} />
+        }
       </div>
-      {multiline
-        ? <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={2}
-            style={{ ...shared, resize: 'none', lineHeight: 1.5 }} />
-        : <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-            type={type} autoFocus={autoFocus} style={shared} />
-      }
     </div>
   )
 }
