@@ -15,14 +15,17 @@ export default function OnboardingScreen({ navigate }) {
   const [anim, setAnim]       = useState(false)
   const [saving, setSaving]   = useState(false)
 
-  const [name,     setName]     = useState('')
-  const [title,    setTitle]    = useState('')
-  const [company,  setCompany]  = useState('')
-  const [email,    setEmail]    = useState('')
-  const [phone,    setPhone]    = useState('')
-  const [linkedin, setLinkedin] = useState('')
-  const [seeking,  setSeeking]  = useState('')
-  const [offering, setOffering] = useState('')
+  // Pre-populate from signup data if available
+  const saved = (() => { try { return JSON.parse(localStorage.getItem('netcard_my_profile') || '{}') } catch { return {} } })()
+
+  const [name,     setName]     = useState(saved.name     || '')
+  const [title,    setTitle]    = useState(saved.title    || '')
+  const [company,  setCompany]  = useState(saved.company  || '')
+  const [email,    setEmail]    = useState(saved.email    || '')
+  const [phone,    setPhone]    = useState(saved.phone    || '')
+  const [linkedin, setLinkedin] = useState(saved.linkedin || '')
+  const [seeking,  setSeeking]  = useState(saved.seeking  || '')
+  const [offering, setOffering] = useState(saved.offering || '')
 
   const initials = name.trim().split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?'
 
@@ -56,6 +59,7 @@ export default function OnboardingScreen({ navigate }) {
       email: payload.email, phone: payload.phone, linkedin: payload.linkedin_url,
       seeking: payload.seeking, offering: payload.offering,
     }))
+    localStorage.setItem('netcard_onboarding_complete', '1')
     setSaving(false)
     navigate('home')
   }

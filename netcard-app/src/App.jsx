@@ -369,13 +369,12 @@ export default function App() {
     return () => clearInterval(id)
   }, [authed, fetchUnread])
 
-  // New-user check — intercept to onboarding if no name saved yet
+  // New-user check — intercept to onboarding until they complete it
   useEffect(() => {
     if (!authed) return
-    try {
-      const profile = JSON.parse(localStorage.getItem('netcard_my_profile') || '{}')
-      if (!profile.name) nav.navigate('onboarding')
-    } catch {}
+    if (!localStorage.getItem('netcard_onboarding_complete')) {
+      nav.navigate('onboarding')
+    }
   }, [authed])
 
   // Seed sample data once per device after first auth
