@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { ArrowLeft, Send, Check, Bug, Lightbulb, HelpCircle, Loader, Clock, ChevronDown, ChevronUp, X } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { ArrowLeft, Send, Check, Bug, Lightbulb, HelpCircle, Loader, Clock, ChevronDown, ChevronUp, MessageCircle } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -18,6 +18,122 @@ const STATUS_META = {
 
 function formatDate(str) {
   try { return new Date(str).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) } catch { return '' }
+}
+
+function TicketThread({ ticket }) {
+  const [replies, setReplies]     = useState(null)  // null = not loaded
+  const [expanded, setExpanded]   = useState(false)
+  const [replyText, setReplyText] = useState('')
+  const [sending, setSending]     = useState(false)
+  const bottomRef = useRef(null)
+
+  const sm = STATUS_META[ticket.status] || STATUS_META.open
+  const catMeta = CATEGORIES.find(c => c.id === ticket.category) || CATEGORIES[2]
+  const isClosed = ticket.status === 'closed'
+
+  const loadReplies = async () => {
+    try {
+      const r = await fetch(`${API}/api/support/${ticket.id}/replies`, { credentials: 'include' })
+      const d = await r.json()
+      if (d.success) setReplies(d.data)
+    } catch { setReplies([]) }
+  }
+
+  const toggle = () => {
+    if (!expanded && replies === null) loadReplies()
+    setExpanded(v => !v)
+  }
+
+  const sendReply = async () => {
+    if (!replyText.trim() || sending) return
+    setSending(true)
+    try {
+      const r = await fetch(`${API}/api/support/${ticket.id}/replies`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: replyText.trim() }),
+      })
+      const d = await r.json()
+      if (d.success) {
+        setReplies(prev => [...(prev || []), d.data])
+        setReplyText('')
+        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+      }
+    } catch { /* ignore */ }
+    setSending(false)
+  }
+
+  const hasAdminReply = replies?.some(r => r.author_type === 'admin')
+
+  return (
+    <div style={{ background: 'var(--card)', borderRadius: 12, border: `1px solid ${hasAdminReply ? 'rgba(99,102,241,0.35)' : 'var(--border)'}`, overflow: 'hidden' }}>
+      {/* Header row */}
+      <button onClick={toggle} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: catMeta.color, fontFamily: 'var(--font-sans)', flexShrink: 0 }}>{catMeta.label}</span>
+          <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ticket.message.slice(0, 60)}{ticket.message.length > 60 ? '…' : ''}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, marginLeft: 8 }}>
+          {hasAdminReply && <MessageCircle size={13} color="var(--indigo)" />}
+          <span style={{ fontSize: 10, fontWeight: 700, color: sm.color, background: sm.bg, borderRadius: 20, padding: '2px 8px', fontFamily: 'var(--font-sans)' }}>{sm.label}</span>
+          {expanded ? <ChevronUp size={13} color="var(--text-muted)" /> : <ChevronDown size={13} color="var(--text-muted)" />}
+        </div>
+      </button>
+
+      {expanded && (
+        <div style={{ borderTop: '1px solid var(--border)', padding: '10px 14px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* Full message bubble */}
+          <div style={{ alignSelf: 'flex-end', maxWidth: '88%', background: 'rgba(99,102,241,0.09)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '12px 12px 2px 12px', padding: '9px 12px' }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--indigo)', marginBottom: 3, fontFamily: 'var(--font-sans)' }}>You · {formatDate(ticket.created_at)}</div>
+            <div style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.55, fontFamily: 'var(--font-sans)', whiteSpace: 'pre-wrap' }}>{ticket.message}</div>
+          </div>
+
+          {/* Replies */}
+          {replies === null && <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>Loading…</div>}
+          {replies?.map(r => (
+            <div key={r.id} style={{
+              alignSelf: r.author_type === 'user' ? 'flex-end' : 'flex-start',
+              maxWidth: '88%',
+              background: r.author_type === 'admin' ? 'var(--elevated)' : 'rgba(99,102,241,0.09)',
+              border: `1px solid ${r.author_type === 'admin' ? 'var(--border)' : 'rgba(99,102,241,0.2)'}`,
+              borderRadius: r.author_type === 'admin' ? '12px 12px 12px 2px' : '12px 12px 2px 12px',
+              padding: '9px 12px',
+            }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: r.author_type === 'admin' ? 'var(--text-muted)' : 'var(--indigo)', marginBottom: 3, fontFamily: 'var(--font-sans)' }}>
+                {r.author_type === 'admin' ? 'PPL AI Support' : 'You'} · {formatDate(r.created_at)}
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.55, fontFamily: 'var(--font-sans)', whiteSpace: 'pre-wrap' }}>{r.body}</div>
+            </div>
+          ))}
+          <div ref={bottomRef} />
+
+          {/* Reply input */}
+          {!isClosed && (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginTop: 2 }}>
+              <textarea
+                value={replyText}
+                onChange={e => setReplyText(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) sendReply() }}
+                placeholder="Add a reply…"
+                rows={2}
+                style={{ flex: 1, padding: '9px 12px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--elevated)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'var(--font-sans)', outline: 'none', resize: 'none', lineHeight: 1.5 }}
+                onFocus={e => e.target.style.borderColor = 'var(--indigo)'}
+                onBlur={e => e.target.style.borderColor = 'var(--border)'}
+              />
+              <button
+                onClick={sendReply}
+                disabled={sending || !replyText.trim()}
+                style={{ padding: '9px 14px', borderRadius: 10, border: 'none', background: replyText.trim() ? 'var(--indigo)' : 'var(--elevated)', color: replyText.trim() ? '#fff' : 'var(--text-muted)', cursor: replyText.trim() ? 'pointer' : 'default', transition: 'all 0.15s' }}
+              >
+                {sending ? <Loader size={15} style={{ animation: 'spin 1s linear infinite' }} /> : <Send size={15} />}
+              </button>
+            </div>
+          )}
+          {isClosed && <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', fontFamily: 'var(--font-sans)' }}>This ticket is closed</div>}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function HelpSupportScreen({ navigate, goBack }) {
@@ -224,25 +340,9 @@ export default function HelpSupportScreen({ navigate, goBack }) {
             </button>
             {showHistory && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-                {tickets.map(t => {
-                  const sm = STATUS_META[t.status] || STATUS_META.open
-                  const catMeta = CATEGORIES.find(c => c.id === t.category) || CATEGORIES[2]
-                  return (
-                    <div key={t.id} style={{ background: 'var(--card)', borderRadius: 12, padding: '12px 14px', border: '1px solid var(--border)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: catMeta.color, fontFamily: 'var(--font-sans)' }}>{catMeta.label}</span>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: sm.color, background: sm.bg, borderRadius: 20, padding: '2px 8px', fontFamily: 'var(--font-sans)' }}>{sm.label}</span>
-                      </div>
-                      <div style={{ fontSize: 13, color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', lineHeight: 1.5, marginBottom: 6 }}>{t.message}</div>
-                      {t.admin_note && (
-                        <div style={{ fontSize: 12, color: 'var(--indigo)', background: 'rgba(99,102,241,0.08)', borderRadius: 8, padding: '7px 10px', fontFamily: 'var(--font-sans)', marginBottom: 6 }}>
-                          <strong>Reply:</strong> {t.admin_note}
-                        </div>
-                      )}
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>{formatDate(t.created_at)}</div>
-                    </div>
-                  )
-                })}
+                {tickets.map(t => (
+                  <TicketThread key={t.id} ticket={t} />
+                ))}
               </div>
             )}
           </div>

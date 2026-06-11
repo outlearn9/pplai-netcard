@@ -19,6 +19,10 @@ type Ticket = {
   id: string; category: string; message: string
   email: string | null; status: string; admin_note: string | null; created_at: string
 }
+type TicketReply = {
+  id: string; author_type: 'admin' | 'user'; author_email: string | null
+  body: string; created_at: string
+}
 type Suggestion = {
   id: string; title: string; body: string; category: string
   up: number; down: number; status: string; created_at: string
@@ -183,37 +187,116 @@ function Card({ children, style }: { children: React.ReactNode; style?: React.CS
 // ── Row components ─────────────────────────────────────────────────────────────
 
 function TicketRow({ t, sess, canEdit, onSaved }: { t: Ticket; sess: Session; canEdit: boolean; onSaved: () => void }) {
-  const [status, setStatus] = useState(t.status)
-  const [note, setNote]     = useState(t.admin_note ?? '')
-  const [busy, setBusy]     = useState(false)
-  const [saved, setSaved]   = useState(false)
-  const save = async () => {
+  const [status, setStatus]     = useState(t.status)
+  const [busy, setBusy]         = useState(false)
+  const [saved, setSaved]       = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const [replies, setReplies]   = useState<TicketReply[]>([])
+  const [replyText, setReplyText] = useState('')
+  const [sending, setSending]   = useState(false)
+  const [repliesLoaded, setRepliesLoaded] = useState(false)
+
+  const loadReplies = async () => {
+    const d = await apiFetch<TicketReply[]>(`/tickets/${t.id}/replies`, sess)
+    if (d) setReplies(d)
+    setRepliesLoaded(true)
+  }
+
+  const toggleExpand = () => {
+    if (!expanded && !repliesLoaded) loadReplies()
+    setExpanded(v => !v)
+  }
+
+  const saveStatus = async () => {
     setBusy(true)
-    await apiFetch(`/tickets/${t.id}`, sess, { method: 'PATCH', body: JSON.stringify({ status, admin_note: note }) })
+    await apiFetch(`/tickets/${t.id}`, sess, { method: 'PATCH', body: JSON.stringify({ status }) })
     setBusy(false); setSaved(true); setTimeout(() => setSaved(false), 2000); onSaved()
   }
+
+  const sendReply = async () => {
+    if (!replyText.trim()) return
+    setSending(true)
+    const d = await apiFetch<TicketReply>(`/tickets/${t.id}/replies`, sess, {
+      method: 'POST', body: JSON.stringify({ body: replyText.trim() }),
+    })
+    setSending(false)
+    if (d) { setReplies(prev => [...prev, d]); setReplyText(''); onSaved() }
+  }
+
   return (
-    <tr>
-      <TD small>{fmtDate(t.created_at)}</TD>
-      <TD small><Badge text={t.category} /></TD>
-      <TD small>{t.message}</TD>
-      <TD small mono><span style={{ color: C.t2 }}>{t.email ?? '—'}</span></TD>
-      <TD small>
-        {canEdit
-          ? <select value={status} onChange={e => setStatus(e.target.value)} style={{ background: C.surface, color: C.t1, border: `1px solid ${C.border}`, borderRadius: 5, padding: '3px 7px', fontSize: 11.5 }}>
-              {['open','in_progress','resolved','closed'].map(s => <option key={s}>{s}</option>)}
-            </select>
-          : <Badge text={status} />
-        }
-      </TD>
-      <TD small>
-        {canEdit
-          ? <input value={note} onChange={e => setNote(e.target.value)} placeholder="Note…" style={{ background: C.sub, color: C.t1, border: `1px solid ${C.border}`, borderRadius: 5, padding: '3px 7px', fontSize: 11.5, width: '100%' }} />
-          : <span style={{ color: C.t2 }}>{note || '—'}</span>
-        }
-      </TD>
-      {canEdit && <TD small><Btn onClick={save} disabled={busy} small>{busy ? '…' : saved ? '✓' : 'Save'}</Btn></TD>}
-    </tr>
+    <>
+      <tr onClick={toggleExpand} style={{ cursor: 'pointer', background: expanded ? C.sub : C.surface }}>
+        <TD small>{fmtDate(t.created_at)}</TD>
+        <TD small><Badge text={t.category} /></TD>
+        <TD small>
+          <div style={{ maxWidth: 280 }}>{t.message.slice(0, 100)}{t.message.length > 100 ? '…' : ''}</div>
+        </TD>
+        <TD small mono><span style={{ color: C.t2 }}>{t.email ?? '—'}</span></TD>
+        <td style={{ padding: '7px 13px', fontSize: 11.5, borderBottom: `1px solid ${C.border}`, verticalAlign: 'top' }} onClick={e => e.stopPropagation()}>
+          {canEdit
+            ? <select value={status} onChange={e => setStatus(e.target.value)} style={{ background: C.surface, color: C.t1, border: `1px solid ${C.border}`, borderRadius: 5, padding: '3px 7px', fontSize: 11.5 }}>
+                {['open','in_progress','resolved','closed'].map(s => <option key={s}>{s}</option>)}
+              </select>
+            : <Badge text={status} />
+          }
+        </td>
+        <TD small>
+          <span style={{ fontSize: 11, color: C.indigo }}>{expanded ? '▲ hide' : `▼ reply${replies.length ? ` (${replies.length})` : ''}`}</span>
+        </TD>
+        {canEdit && <td style={{ padding: '7px 13px', fontSize: 11.5, borderBottom: `1px solid ${C.border}`, verticalAlign: 'top' }} onClick={e => e.stopPropagation()}><Btn onClick={saveStatus} disabled={busy} small>{busy ? '…' : saved ? '✓' : 'Save'}</Btn></td>}
+      </tr>
+
+      {expanded && (
+        <tr>
+          <td colSpan={canEdit ? 7 : 6} style={{ padding: 0, background: '#f8fafc', borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+              {/* Full message */}
+              <div style={{ fontSize: 12.5, color: C.t1, lineHeight: 1.6, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 13px' }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: C.t2, textTransform: 'uppercase', letterSpacing: 0.4, display: 'block', marginBottom: 5 }}>User Message</span>
+                {t.message}
+              </div>
+
+              {/* Replies thread */}
+              {!repliesLoaded
+                ? <div style={{ fontSize: 12, color: C.t3 }}>Loading replies…</div>
+                : replies.length > 0 && replies.map(r => (
+                  <div key={r.id} style={{
+                    alignSelf: r.author_type === 'admin' ? 'flex-end' : 'flex-start',
+                    maxWidth: '80%', background: r.author_type === 'admin' ? C.indigo + '14' : C.surface,
+                    border: `1px solid ${r.author_type === 'admin' ? C.indigo + '40' : C.border}`,
+                    borderRadius: 8, padding: '8px 12px',
+                  }}>
+                    <div style={{ fontSize: 10.5, fontWeight: 700, color: r.author_type === 'admin' ? C.indigo : C.t3, marginBottom: 3 }}>
+                      {r.author_type === 'admin' ? `Admin${r.author_email ? ` · ${r.author_email}` : ''}` : `User${r.author_email ? ` · ${r.author_email}` : ''}`}
+                      <span style={{ fontWeight: 400, marginLeft: 8 }}>{fmtDate(r.created_at)}</span>
+                    </div>
+                    <div style={{ fontSize: 12.5, color: C.t1, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{r.body}</div>
+                  </div>
+                ))
+              }
+
+              {/* Reply input */}
+              {canEdit && (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginTop: 2 }}>
+                  <textarea
+                    value={replyText}
+                    onChange={e => setReplyText(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) sendReply() }}
+                    placeholder="Type a reply… (Cmd+Enter to send)"
+                    rows={2}
+                    style={{ flex: 1, background: C.surface, color: C.t1, border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 11px', fontSize: 12.5, resize: 'vertical', fontFamily: 'inherit', outline: 'none' }}
+                  />
+                  <Btn onClick={sendReply} disabled={sending || !replyText.trim()} small>
+                    {sending ? '…' : 'Reply'}
+                  </Btn>
+                </div>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   )
 }
 
@@ -1074,7 +1157,7 @@ export default function AdminPage() {
             <SectionTitle count={tickets.length} note={!canEdit ? 'view only' : undefined}>{`Support Tickets`}</SectionTitle>
             <Card style={{ overflow: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' as const }}>
-                <thead><tr><TH>Date</TH><TH>Category</TH><TH>Message</TH><TH>Email</TH><TH>Status</TH><TH>Note</TH>{canEdit && <TH>Save</TH>}</tr></thead>
+                <thead><tr><TH>Date</TH><TH>Category</TH><TH>Message</TH><TH>Email</TH><TH>Status</TH><TH>Replies</TH>{canEdit && <TH>Save</TH>}</tr></thead>
                 <tbody>
                   {tickets.length === 0
                     ? <tr><td colSpan={canEdit ? 7 : 6} style={{ padding: 28, textAlign: 'center' as const, color: C.t3, fontSize: 13 }}>No tickets</td></tr>
