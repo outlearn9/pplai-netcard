@@ -18,6 +18,9 @@ const TABLES = [
   'suggestion_votes',
   'crash_reports',
   'notifications',
+  'audit_logs',
+  'admin_users',
+  'user_sessions',
 ] as const
 
 /** GET /api/admin/database — row counts for every table */

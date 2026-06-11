@@ -31,7 +31,21 @@ type TableStat  = { table: string; count: number | null; error: string | null }
 type AdminUser  = { id: string; email: string; role: string; added_by: string | null; created_at: string }
 type AppUser    = { id: string; clerk_user_id: string; name: string | null; email: string | null; role: string | null; company: string | null; created_at: string }
 type TableData  = { rows: Record<string, unknown>[]; total: number; limit: number; offset: number }
-type Tab = 'stats' | 'database' | 'crashes' | 'suggestions' | 'support' | 'users'
+type Tab = 'stats' | 'database' | 'crashes' | 'suggestions' | 'support' | 'users' | 'sessions'
+
+type SessionRow = {
+  id: string; user_id: string; session_type: string; browser: string
+  device_type: string; os: string; country: string | null; city: string | null
+  started_at: string; ended_at: string | null; duration_s: number | null
+}
+type SessionStats = {
+  total: number; avg_duration_s: number
+  by_session_type: Record<string, number>
+  by_browser: Record<string, number>
+  by_device_type: Record<string, number>
+  by_country: Record<string, number>
+}
+type SessionsData = { sessions: SessionRow[]; stats: SessionStats }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -119,12 +133,13 @@ function TH({ children }: { children: React.ReactNode }) {
   )
 }
 
-function TD({ children, mono, small }: { children: React.ReactNode; mono?: boolean; small?: boolean }) {
+function TD({ children, mono, small, style }: { children: React.ReactNode; mono?: boolean; small?: boolean; style?: React.CSSProperties }) {
   return (
     <td style={{
       padding: small ? '7px 13px' : '11px 13px', fontSize: small ? 11.5 : 12.5, color: C.t1,
       borderBottom: `1px solid ${C.border}`, fontFamily: mono ? 'monospace' : 'inherit',
       verticalAlign: 'top' as const, maxWidth: 260, wordBreak: 'break-word' as const,
+      ...style,
     }}>{children}</td>
   )
 }
@@ -662,6 +677,119 @@ function UsersTab({ sess, users, onRefresh }: { sess: Session; users: AdminUser[
   )
 }
 
+// ── Sessions Tab ─────────────────────────────────────────────────────────────
+
+const SESSION_TYPE_LABELS: Record<string, string> = {
+  web: 'Web', mobile_web: 'Mobile Web', mobile_app: 'Mobile App', tablet: 'Tablet',
+}
+const BROWSER_LABELS: Record<string, string> = {
+  chrome: 'Chrome', safari: 'Safari', firefox: 'Firefox', edge: 'Edge',
+  android: 'Android', ios: 'iOS', other: 'Other',
+}
+
+function fmtDuration(s: number | null) {
+  if (s == null) return '—'
+  if (s < 60)   return `${s}s`
+  if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`
+  return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`
+}
+
+function StatPills({ map, labelMap }: { map: Record<string, number>; labelMap?: Record<string, string> }) {
+  const total = Object.values(map).reduce((a, b) => a + b, 0)
+  if (!total) return <span style={{ color: C.t3, fontSize: 12 }}>No data</span>
+  return (
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
+      {Object.entries(map).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
+        <span key={k} style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          background: C.sub, border: `1px solid ${C.border}`, borderRadius: 6,
+          padding: '3px 9px', fontSize: 12,
+        }}>
+          <span style={{ fontWeight: 700, color: C.t1 }}>{labelMap?.[k] ?? k}</span>
+          <span style={{ color: C.t3 }}>{v}</span>
+          <span style={{ color: C.t3, fontSize: 10 }}>({Math.round(v / total * 100)}%)</span>
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function SessionsTab({ data }: { data: SessionsData | null }) {
+  if (!data) return <div style={{ color: C.red, fontSize: 14 }}>Failed to load sessions</div>
+  const { sessions, stats } = data
+
+  return (
+    <div>
+      <SectionTitle count={stats.total}>User Sessions</SectionTitle>
+
+      {/* Stat cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 24 }}>
+        {[
+          { label: 'Total Sessions',   val: stats.total,          color: C.indigo },
+          { label: 'Avg Duration',     val: fmtDuration(stats.avg_duration_s), color: C.green, raw: true },
+          { label: 'Web',              val: stats.by_session_type['web'] ?? 0,         color: C.blue },
+          { label: 'Mobile Web',       val: stats.by_session_type['mobile_web'] ?? 0,  color: C.amber },
+          { label: 'Tablet',           val: stats.by_session_type['tablet'] ?? 0,      color: C.purple },
+          { label: 'Mobile App',       val: stats.by_session_type['mobile_app'] ?? 0,  color: C.pink },
+        ].map(s => (
+          <Card key={s.label} style={{ padding: '16px 18px', borderLeft: `4px solid ${s.color}` }}>
+            <div style={{ fontSize: 26, fontWeight: 800, color: s.color }}>
+              {'raw' in s ? s.val : typeof s.val === 'number' ? s.val.toLocaleString() : s.val}
+            </div>
+            <div style={{ fontSize: 12, color: C.t2, marginTop: 4 }}>{s.label}</div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Breakdown rows */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
+        {[
+          { title: 'By Session Type', map: stats.by_session_type, labels: SESSION_TYPE_LABELS },
+          { title: 'By Browser',      map: stats.by_browser,      labels: BROWSER_LABELS },
+          { title: 'By Device Type',  map: stats.by_device_type,  labels: undefined },
+          { title: 'By Country',      map: stats.by_country,      labels: undefined },
+        ].map(({ title, map, labels }) => (
+          <Card key={title} style={{ padding: '16px 18px' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.t2, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 10 }}>{title}</div>
+            <StatPills map={map} labelMap={labels} />
+          </Card>
+        ))}
+      </div>
+
+      {/* Sessions table */}
+      <Card style={{ overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' as const }}>
+          <thead>
+            <tr>
+              <TH>Started</TH><TH>User</TH><TH>Session Type</TH><TH>Browser</TH>
+              <TH>Device</TH><TH>OS</TH><TH>Location</TH><TH>Duration</TH>
+            </tr>
+          </thead>
+          <tbody>
+            {sessions.length === 0 && (
+              <tr><td colSpan={8} style={{ padding: 28, textAlign: 'center' as const, color: C.t3, fontSize: 13 }}>No sessions recorded yet</td></tr>
+            )}
+            {sessions.map(s => (
+              <tr key={s.id}>
+                <TD small>{fmtDate(s.started_at)}</TD>
+                <TD small mono><span style={{ color: C.t2, fontSize: 10.5 }}>{s.user_id.slice(0, 16)}…</span></TD>
+                <TD small><Badge text={SESSION_TYPE_LABELS[s.session_type] ?? s.session_type} /></TD>
+                <TD small><span style={{ fontWeight: 600 }}>{BROWSER_LABELS[s.browser] ?? s.browser}</span></TD>
+                <TD small>{s.device_type}</TD>
+                <TD small>{s.os ?? '—'}</TD>
+                <TD small>{[s.city, s.country].filter(Boolean).join(', ') || '—'}</TD>
+                <TD small style={{ fontWeight: s.duration_s ? 600 : 400, color: s.duration_s ? C.t1 : C.t3 }}>
+                  {fmtDuration(s.duration_s)}
+                </TD>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  )
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function AdminPage() {
@@ -682,6 +810,7 @@ export default function AdminPage() {
   const [crashes, setCrashes]       = useState<Crash[]>([])
   const [dbTables, setDbTables]     = useState<TableStat[]>([])
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([])
+  const [sessionsData, setSessionsData] = useState<SessionsData | null>(null)
   const [loading, setLoading]       = useState(false)
 
   useEffect(() => {
@@ -744,6 +873,8 @@ export default function AdminPage() {
       const d = await apiFetch<TableStat[]>('/database', s); if (d) setDbTables(d)
     } else if (t === 'users') {
       await loadAdminUsers(s)
+    } else if (t === 'sessions') {
+      const d = await apiFetch<SessionsData>('/sessions', s); if (d) setSessionsData(d)
     }
     setLoading(false)
   }, [loadAdminUsers])
@@ -832,6 +963,7 @@ export default function AdminPage() {
 
   const TABS: { id: Tab; label: string; badge?: number }[] = [
     { id: 'stats',       label: 'Stats' },
+    { id: 'sessions',    label: 'Sessions' },
     { id: 'database',    label: 'Database' },
     { id: 'crashes',     label: 'Crashes',     badge: stats?.crashes_7d },
     { id: 'suggestions', label: 'Suggestions' },
@@ -876,6 +1008,7 @@ export default function AdminPage() {
         {loading && <div style={{ color: C.t3, fontSize: 13, marginBottom: 16 }}>Loading…</div>}
 
         {tab === 'stats'       && <StatsTab stats={stats} timeseries={timeseries} />}
+        {tab === 'sessions'    && <SessionsTab data={sessionsData} />}
         {tab === 'database'    && <DatabaseTab tables={dbTables} sess={sess} />}
         {tab === 'crashes'     && (
           <div>

@@ -449,6 +449,39 @@ export default function App() {
       })
   }, [authed])
 
+  // Record session start; end session on tab close / sign-out
+  useEffect(() => {
+    if (!authed) return
+    const deviceId = (() => {
+      let id = localStorage.getItem('netcard_device_id')
+      if (!id) { id = crypto.randomUUID(); localStorage.setItem('netcard_device_id', id) }
+      return id
+    })()
+
+    let sessionId = null
+    fetch(`${API}/api/sessions`, {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device_id: deviceId }),
+    })
+      .then(r => r.json())
+      .then(d => { if (d?.data?.session_id) sessionId = d.data.session_id })
+      .catch(() => {})
+
+    const endSession = () => {
+      if (!sessionId) return
+      navigator.sendBeacon(
+        `${API}/api/sessions/end`,
+        JSON.stringify({ session_id: sessionId }),
+      )
+    }
+    window.addEventListener('beforeunload', endSession)
+    return () => {
+      window.removeEventListener('beforeunload', endSession)
+      endSession()
+    }
+  }, [authed])
+
   // Seed sample data once per device after first auth
   useEffect(() => {
     if (!authed) return
