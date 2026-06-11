@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-const TAB_SCREENS = ['home', 'scan', 'mycard', 'events', 'ai', 'chatList', 'allContacts']
+const TAB_SCREENS = ['home', 'scan', 'mycard', 'events', 'ai', 'allContacts']
 
 /**
  * Centralised navigation hook for the PPL-AI phone-shell SPA.

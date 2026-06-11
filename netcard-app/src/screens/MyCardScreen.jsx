@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Pencil, Mail, Phone, Send, Search, Gift, Copy, Globe, X, Check, Menu, AlertCircle } from 'lucide-react'
 
+const API = import.meta.env.VITE_API_URL || ''
+
 const FIELD_LABELS = {
   title:    'Job title',
   company:  'Company',
@@ -100,8 +102,8 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
       if (stillMissing.length === 0) onFieldsFilled()
     }
     // Sync to backend — fire and forget, localStorage is source of truth for display
-    fetch('/api/profile', {
-      method: 'PATCH',
+    fetch(`${API}/api/profile`, {
+      method: 'PATCH', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: draft.name,
@@ -115,7 +117,7 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
         seeking: draft.seeking,
         offering: draft.offering,
       }),
-    }).catch(() => {}) // silent — user already sees their local update
+    }).catch(() => {})
   }
   const cancelEdit = () => setShowEdit(false)
 

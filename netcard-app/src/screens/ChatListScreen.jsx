@@ -1,6 +1,8 @@
 import { Search, Edit, ArrowLeft } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
+const API = import.meta.env.VITE_API_URL || ''
+
 const GRADS = ['grad-purple', 'grad-green', 'grad-amber', 'grad-coral', 'grad-blue']
 
 function toInitials(name) {
@@ -41,7 +43,7 @@ export default function ChatListScreen({ navigate, goBack }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/conversations')
+    fetch(`${API}/api/conversations`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(res => {
         const list = Array.isArray(res.data) ? res.data : []

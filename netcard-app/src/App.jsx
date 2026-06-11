@@ -71,7 +71,7 @@ const makeScreenMap = (onMenuOpen) => ({
   mycard:      (nav) => <MyCardScreen      navigate={nav.navigate} onMenuOpen={onMenuOpen} />,
   events:      (nav) => <EventsScreen      navigate={nav.navigate} onMenuOpen={onMenuOpen} />,
   addEvent:    (nav) => <AddEventScreen    navigate={nav.navigate} event={nav.screenData} />,
-  contact:     (nav) => <ContactScreen     navigate={nav.navigate} contact={nav.screenData} />,
+  contact:     (nav) => <ContactScreen     navigate={nav.navigate} goBack={nav.goBack} contact={nav.screenData} />,
   ai:          (nav) => <AIFollowupsScreen navigate={nav.navigate} />,
   switchEvent: (nav) => <SwitchEventScreen navigate={nav.navigate} />,
   allContacts: (nav) => <AllContactsScreen navigate={nav.navigate} />,
@@ -418,15 +418,17 @@ export default function App() {
         if (profile.name) {
           // ── Returning / existing user ──────────────────────────────────────
           localStorage.setItem('netcard_my_profile', JSON.stringify({
-            name:     profile.name     || '',
-            title:    profile.role     || '',
-            company:  profile.company  || '',
-            email:    profile.email    || '',
-            phone:    profile.phone    || '',
-            linkedin: profile.linkedin_url || '',
-            web:      profile.website  || '',
-            seeking:  profile.seeking  || '',
-            offering: profile.offering || '',
+            name:          profile.name          || '',
+            title:         profile.role          || '',
+            company:       profile.company       || '',
+            email:         profile.email         || '',
+            phone:         profile.phone         || '',
+            whatsapp:      profile.whatsapp      || '',
+            linkedin:      profile.linkedin_url  || '',
+            web:           profile.web_url       || '',
+            seeking:       profile.seeking       || '',
+            offering:      profile.offering      || '',
+            clerk_user_id: profile.clerk_user_id || '',
           }))
 
           const missing = []

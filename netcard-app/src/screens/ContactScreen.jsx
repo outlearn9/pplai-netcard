@@ -7,7 +7,9 @@ function toInitials(name) {
 }
 function toGrad(name) { return GRADS[name ? name.charCodeAt(0) % GRADS.length : 0] }
 
-export default function ContactScreen({ navigate, contact, screenData }) {
+const API = import.meta.env.VITE_API_URL || ''
+
+export default function ContactScreen({ navigate, goBack, contact, screenData }) {
   const passedContact = contact || screenData?.contact || screenData || {}
   const contactId = passedContact.id
 
@@ -24,9 +26,9 @@ export default function ContactScreen({ navigate, contact, screenData }) {
   useEffect(() => {
     if (!contactId) return
     Promise.all([
-      fetch(`/api/contacts/${contactId}`).then(r => r.ok ? r.json() : null),
-      fetch(`/api/contacts/${contactId}/notes`).then(r => r.ok ? r.json() : null),
-      fetch(`/api/contacts/${contactId}/tags`).then(r => r.ok ? r.json() : null),
+      fetch(`${API}/api/contacts/${contactId}`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
+      fetch(`${API}/api/contacts/${contactId}/notes`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
+      fetch(`${API}/api/contacts/${contactId}/tags`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
     ]).then(([contactRes, notesRes, tagsRes]) => {
       if (contactRes?.data) {
         const d = contactRes.data
@@ -45,8 +47,9 @@ export default function ContactScreen({ navigate, contact, screenData }) {
 
   const handleAddNote = async (content) => {
     if (!contactId || !content.trim()) return
-    const res = await fetch(`/api/contacts/${contactId}/notes`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+    const res = await fetch(`${API}/api/contacts/${contactId}/notes`, {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content }),
     })
     if (res.ok) {
@@ -79,7 +82,7 @@ export default function ContactScreen({ navigate, contact, screenData }) {
       </div>
 
       <div className="screen-header">
-        <button className="icon-btn" onClick={() => navigate('home')}>
+        <button className="icon-btn" onClick={goBack ?? (() => navigate('home'))}>
           <ArrowLeft size={20} />
         </button>
         <span className="header-title">Contact</span>

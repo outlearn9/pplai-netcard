@@ -59,7 +59,7 @@ function buildVCard(profile) {
     profile.email    ? `EMAIL;TYPE=INTERNET:${profile.email}`     : null,
     profile.linkedin ? `URL;TYPE=linkedin:${profile.linkedin}`    : null,
     profile.web      ? `URL;TYPE=work:${profile.web}`             : null,
-    `URL;TYPE=profile:https://pplai.app/u/paras`,
+    `URL;TYPE=profile:https://pplai.app/u/${(profile.clerk_user_id || 'me')}`,
     `NOTE:${note.replace(/\n/g, '\\n')}`,
     'END:VCARD',
   ]
@@ -135,7 +135,8 @@ function OfflinePreviewModal({ profile, onClose }) {
   let noteText = `We met: ${dateStr}, ${timeStr}`
   if (activeEvent?.location) noteText += ` at ${activeEvent.location}`
   if (activeEvent?.name)     noteText += `\nEvent: ${activeEvent.name}`
-  const cardUrl  = 'https://pplai.app/u/paras'
+  const userId2  = profile.clerk_user_id || 'me'
+  const cardUrl  = `https://pplai.app/u/${userId2}`
 
   const ActionBtn = ({ icon, label }) => (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flex: 1 }}>
@@ -214,8 +215,9 @@ export default function ShareCardScreen({ navigate, goBack }) {
     try { return JSON.parse(localStorage.getItem('netcard_my_profile') || '{}') } catch { return {} }
   })()
 
-  const profileUrl = 'https://pplai.app/u/paras'
-  const vcardUrl   = `${import.meta.env.VITE_API_URL ?? 'http://localhost:3001'}/api/qr/paras?format=vcard`
+  const userId     = profile.clerk_user_id || 'me'
+  const profileUrl = `https://pplai.app/u/${userId}`
+  const vcardUrl   = `${import.meta.env.VITE_API_URL ?? ''}/api/qr/${userId}?format=vcard`
 
   useEffect(() => {
     const on  = () => setOffline(false)
