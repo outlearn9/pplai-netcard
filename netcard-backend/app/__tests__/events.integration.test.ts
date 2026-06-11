@@ -19,7 +19,7 @@ function buildQuery(table: string) {
   let _isInsert = false
   let _isUpdate = false
   let _isDelete = false
-  let _single = false
+  let _isSingle = false
   let _selectCols = '*'
 
   async function execute() {
@@ -37,7 +37,7 @@ function buildQuery(table: string) {
         ...d,
       }))
       store[table] = [...rows, ...inserted]
-      return { data: _single ? inserted[0] : inserted, error: null }
+      return { data: _isSingle ? inserted[0] : inserted, error: null }
     }
     if (_isUpdate) {
       store[table] = rows.map(r =>
@@ -46,7 +46,7 @@ function buildQuery(table: string) {
       const updated = (store[table] ?? []).filter(r =>
         _filters.every(f => r[f.col] === f.val)
       )
-      return { data: _single ? updated[0] ?? null : updated, error: null }
+      return { data: _isSingle ? updated[0] ?? null : updated, error: null }
     }
     if (_isDelete) {
       store[table] = rows.filter(r =>
@@ -54,7 +54,7 @@ function buildQuery(table: string) {
       )
       return { data: null, error: null }
     }
-    return { data: _single ? filtered[0] ?? null : filtered, error: null }
+    return { data: _isSingle ? filtered[0] ?? null : filtered, error: null }
   }
 
   const q: any = {
@@ -67,7 +67,7 @@ function buildQuery(table: string) {
     order:       () => q,
     limit:       () => q,
     maybeSingle: () => ({ then: (r: any, j: any) => execute().then(r, j) }),
-    single:      () => ({ then: (r: any, j: any) => execute().then(r, j) }),
+    single:      () => { _isSingle = true; return { then: (r: any, j: any) => execute().then(r, j) } },
     then:        (r: any, j: any) => execute().then(r, j),
   }
   return q
@@ -117,7 +117,6 @@ describe('/api/events — POST', () => {
     const body = await res.json()
     expect(body.success).toBe(true)
     expect(body.data.id).toBeDefined()
-    expect(body.data.name).toBeUndefined() // name is in insert payload, mock returns inserted shape
   })
 
   it('returns 201 with all optional fields', async () => {

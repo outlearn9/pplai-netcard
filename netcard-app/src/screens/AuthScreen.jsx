@@ -230,7 +230,11 @@ export default function AuthScreen({ onAuth }) {
         return
       }
 
-      // Redirect to Clerk sign-in token URL — sets session then comes back to app
+      // Pre-set auth flag before redirecting — the OTP was already verified so
+      // the session will be valid when Clerk redirects back to the app.
+      // Without this, the app reloads with authed=false and shows the landing screen.
+      localStorage.setItem('netcard_authed', '1')
+      // Redirect to Clerk sign-in token URL — sets session cookie then comes back to app
       window.location.href = d.data.token_url
     } catch {
       setSignupError('Network error. Please try again.')

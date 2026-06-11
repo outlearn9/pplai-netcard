@@ -1,0 +1,1522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PPL AI — Desktop Layout Preview</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet" />
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #F5F4F1;
+  --card: #FFFFFF;
+  --elevated: #EDECE9;
+  --border: #E2E0DC;
+  --border-strong: #D0CEC9;
+  --text-primary: #111110;
+  --text-secondary: #6B6A6F;
+  --text-muted: #9898A2;
+  --text-tertiary: #B8B7C2;
+  --green: #32D583;
+  --indigo: #6366F1;
+  --indigo-dark: #4F46E5;
+  --coral: #E85A4F;
+  --amber: #F59E0B;
+  --font-serif: 'Fraunces', Georgia, serif;
+  --font-sans: 'DM Sans', sans-serif;
+  --sidebar-w: 228px;
+  --topbar-h: 58px;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: #E8E6E1;
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── PREVIEW TAB SWITCHER ── */
+.preview-tabs {
+  height: 46px;
+  display: flex;
+  align-items: center;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  gap: 2px;
+  position: relative;
+  z-index: 100;
+}
+.preview-tab {
+  padding: 7px 14px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  transition: all 0.12s;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.preview-tab:hover { color: var(--text-secondary); background: var(--elevated); }
+.preview-tab.active { color: var(--indigo); background: rgba(99,102,241,0.08); }
+.tab-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.5; }
+.tab-dim { font-size: 11px; color: var(--text-muted); font-weight: 400; }
+
+.layout { display: none; height: calc(100vh - 46px); overflow: hidden; }
+.layout.visible { display: flex; }
+
+/* ══════════════════════════════
+   SHARED SIDEBAR
+══════════════════════════════ */
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--card);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.sidebar-logo {
+  height: var(--topbar-h);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.logo-mark {
+  width: 32px; height: 32px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #6366F1, #7C3AED);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-serif);
+  font-size: 15px; font-weight: 700; color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(99,102,241,0.3);
+}
+.logo-wordmark {
+  font-family: var(--font-serif);
+  font-size: 17px; font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow-y: auto;
+}
+.nav-section-label {
+  font-size: 10px; font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.8px; text-transform: uppercase;
+  padding: 10px 10px 4px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 13.5px; font-weight: 500;
+  transition: background 0.1s, color 0.1s;
+  border: none; background: transparent;
+  width: 100%; text-align: left;
+  position: relative;
+}
+.nav-item:hover { background: var(--elevated); color: var(--text-primary); }
+.nav-item.active { background: rgba(99,102,241,0.08); color: var(--indigo); font-weight: 600; }
+.nav-icon { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.nav-badge {
+  margin-left: auto;
+  background: var(--coral); color: #fff;
+  font-size: 10px; font-weight: 700;
+  padding: 1px 6px; border-radius: 100px;
+  min-width: 18px; text-align: center;
+}
+.nav-badge.amber { background: var(--amber); color: #111; }
+.nav-badge.green { background: var(--green); color: #0B0B0E; }
+.nav-item.scan-nav {
+  margin: 4px 0;
+  background: rgba(99,102,241,0.06);
+  border: 1px solid rgba(99,102,241,0.18);
+  color: var(--indigo); font-weight: 600;
+}
+.nav-item.scan-nav:hover { background: rgba(99,102,241,0.12); }
+
+.sidebar-footer {
+  border-top: 1px solid var(--border);
+  padding: 10px 8px 12px;
+}
+.sidebar-profile {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px;
+  border-radius: 9px; cursor: pointer;
+  transition: background 0.1s;
+  border: none; background: transparent;
+  width: 100%; text-align: left;
+}
+.sidebar-profile:hover { background: var(--elevated); }
+.profile-name { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.profile-handle { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+
+.online-hint {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text-muted);
+  padding: 4px 10px 2px;
+}
+.online-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 2px rgba(50,213,131,0.25);
+  flex-shrink: 0;
+  animation: pulse 2s infinite;
+}
+
+/* avatars */
+.av {
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.av-sm { width: 30px; height: 30px; font-size: 11px; }
+.av-md { width: 36px; height: 36px; font-size: 13px; }
+.av-lg { width: 40px; height: 40px; font-size: 14px; }
+.av-xl { width: 48px; height: 48px; font-size: 17px; }
+.av-p  { background: linear-gradient(135deg,#4F46E5,#7C3AED); }
+.av-g  { background: linear-gradient(135deg,#059669,#32D583); }
+.av-a  { background: linear-gradient(135deg,#D97706,#F59E0B); }
+.av-c  { background: linear-gradient(135deg,#DC2626,#E85A4F); }
+.av-t  { background: linear-gradient(135deg,#0891B2,#06B6D4); }
+.av-r  { background: linear-gradient(135deg,#7C3AED,#8B5CF6); }
+
+/* shared utils */
+.btn-primary {
+  height: 34px; background: var(--indigo); color: #fff;
+  border: none; border-radius: 8px; padding: 0 14px;
+  font-family: var(--font-sans); font-size: 13px; font-weight: 600;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  transition: background 0.1s; white-space: nowrap;
+}
+.btn-primary:hover { background: var(--indigo-dark); }
+.btn-ghost {
+  height: 34px; background: var(--elevated); color: var(--text-secondary);
+  border: 1px solid var(--border); border-radius: 8px; padding: 0 14px;
+  font-family: var(--font-sans); font-size: 13px; font-weight: 600;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+}
+.icon-btn {
+  width: 34px; height: 34px; border-radius: 8px;
+  background: var(--elevated); border: 1px solid var(--border);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  position: relative; transition: background 0.1s;
+}
+.icon-btn:hover { background: var(--border); }
+.notif-dot {
+  position: absolute; top: -3px; right: -3px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--coral); color: #fff;
+  font-size: 9px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--card);
+}
+
+/* pill filter buttons */
+.pill-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.pill {
+  padding: 6px 14px; border-radius: 100px;
+  font-family: var(--font-sans); font-size: 12px; font-weight: 600;
+  border: none; cursor: pointer; transition: all 0.12s;
+}
+.pill.on  { background: var(--indigo); color: #fff; }
+.pill.off { background: var(--card); border: 1px solid var(--border); color: var(--text-secondary); }
+.pill.off:hover { border-color: var(--border-strong); color: var(--text-primary); }
+
+/* type chip pill */
+.type-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 100px;
+  font-family: var(--font-sans); font-size: 12px; font-weight: 600;
+  border: 1.5px solid transparent; cursor: pointer; transition: all 0.12s; white-space: nowrap;
+}
+
+/* tags */
+.tag {
+  display: inline-flex; align-items: center;
+  font-size: 11px; font-weight: 600;
+  padding: 3px 9px; border-radius: 100px;
+}
+.t-green  { background: rgba(50,213,131,0.12);  color: #059669; }
+.t-indigo { background: rgba(99,102,241,0.10);  color: var(--indigo); }
+.t-muted  { background: var(--elevated);         color: var(--text-secondary); }
+.t-amber  { background: rgba(245,158,11,0.14);  color: #D97706; }
+.t-coral  { background: rgba(232,90,79,0.10);   color: var(--coral); }
+.t-teal   { background: rgba(8,145,178,0.12);   color: #0891B2; }
+
+/* sec header */
+.sec-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.sec-title { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.7px; }
+.sec-action { font-size: 12px; font-weight: 600; color: var(--indigo); border: none; background: none; cursor: pointer; padding: 0; }
+
+/* right panel card */
+.pcard { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.pcard-hdr {
+  padding: 13px 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.pcard-title { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+.pcard-sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+.pcard-body { padding: 14px 16px; }
+
+/* contacts list row */
+.crow {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background 0.1s;
+  position: relative;
+}
+.crow:last-child { border-bottom: none; }
+.crow:hover { background: #fafaf9; }
+.crow-info { flex: 1; min-width: 0; }
+.crow-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.crow-role { font-size: 11px; color: var(--text-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crow-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.12s; }
+.crow:hover .crow-actions { opacity: 1; }
+.apill {
+  font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 100px;
+  border: 1px solid var(--border); background: var(--card);
+  color: var(--text-secondary); cursor: pointer; white-space: nowrap;
+}
+.apill:hover { background: var(--elevated); }
+
+/* topbar */
+.topbar {
+  height: var(--topbar-h);
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 24px; gap: 12px; flex-shrink: 0;
+}
+.topbar-title {
+  font-family: var(--font-serif);
+  font-size: 20px; font-weight: 600;
+  letter-spacing: -0.4px; color: var(--text-primary);
+  flex: 1;
+}
+.search-bar {
+  height: 34px; background: var(--elevated);
+  border: 1px solid var(--border); border-radius: 8px;
+  display: flex; align-items: center; gap: 7px;
+  padding: 0 12px; width: 210px;
+}
+.search-bar span { font-size: 13px; color: var(--text-muted); flex: 1; }
+kbd {
+  font-size: 10px; color: var(--text-muted);
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 4px; padding: 1px 5px;
+  font-family: var(--font-sans);
+}
+
+/* content area */
+.content-area {
+  flex: 1; overflow-y: auto; scrollbar-width: none;
+  display: flex; flex-direction: column;
+  padding: 20px 24px; gap: 16px;
+}
+.content-area::-webkit-scrollbar { display: none; }
+
+/* 2-col grid */
+.main-grid {
+  display: grid; grid-template-columns: 1fr 300px; gap: 16px;
+  flex: 1; min-height: 0;
+}
+.col { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; scrollbar-width: none; }
+.col::-webkit-scrollbar { display: none; }
+
+@keyframes pulse {
+  0%,100% { box-shadow: 0 0 0 2px rgba(50,213,131,0.2); }
+  50% { box-shadow: 0 0 0 5px rgba(50,213,131,0.06); }
+}
+@keyframes blink {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+svg { display: block; }
+
+/* ══════════════════════════════
+   DESKTOP LAYOUT
+══════════════════════════════ */
+#layout-desktop { flex-direction: row; background: var(--bg); }
+.desktop-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+/* place card */
+.place-card {
+  background: var(--card);
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1.5px solid var(--border);
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s;
+  margin-bottom: 10px;
+}
+.place-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,0.07); }
+.place-card.active-place {
+  border-color: var(--green);
+  box-shadow: 0 4px 20px rgba(50,213,131,0.12);
+}
+.active-banner {
+  background: rgba(50,213,131,0.10);
+  padding: 9px 16px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.active-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--green); border-radius: 100px;
+  padding: 4px 10px;
+}
+.pulse-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: #fff; display: inline-block;
+  animation: blink 1.6s ease-in-out infinite;
+}
+.active-label {
+  font-size: 10px; font-weight: 700; color: #0B0B0E; letter-spacing: 0.5px;
+}
+.active-count {
+  font-size: 12px; font-weight: 500; color: var(--green);
+  display: flex; align-items: center; gap: 4px;
+}
+.place-body { padding: 13px 16px; display: flex; gap: 12px; }
+.venue-badge {
+  width: 44px; height: 44px; border-radius: 14px; flex-shrink: 0; margin-top: 2px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1.5px solid transparent;
+}
+.place-info { flex: 1; min-width: 0; }
+.place-name {
+  font-family: var(--font-serif); font-size: 15px; font-weight: 600;
+  color: var(--text-primary); letter-spacing: -0.2px;
+  margin-bottom: 5px;
+}
+.place-type-chip {
+  display: inline-block;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
+  border-radius: 6px; padding: 3px 8px; margin-bottom: 6px;
+}
+.place-meta { font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; margin-bottom: 3px; }
+.place-actions { display: flex; gap: 5px; margin-left: auto; flex-shrink: 0; }
+.place-act-btn {
+  width: 28px; height: 28px; border-radius: 50%; border: none; cursor: pointer;
+  background: var(--elevated); display: flex; align-items: center; justify-content: center;
+  color: var(--text-secondary); transition: background 0.1s;
+}
+.place-act-btn:hover { background: var(--border); }
+
+/* quick-add row */
+.quick-add-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--text-muted); margin-bottom: 8px;
+}
+.quick-add-row { display: flex; gap: 7px; flex-wrap: wrap; }
+.quick-add-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 13px; border-radius: 100px;
+  border: 1.5px solid transparent; background: transparent;
+  font-family: var(--font-sans); font-size: 12px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; transition: opacity 0.12s;
+}
+.quick-add-btn:hover { opacity: 0.85; }
+
+/* my card hero */
+.card-hero {
+  background: linear-gradient(145deg, #2D2F6B 0%, #3D3080 45%, #252560 100%);
+  border-radius: 16px; height: 170px; position: relative; overflow: hidden;
+  margin-bottom: 14px; padding: 18px 20px;
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.card-hero-glow1 {
+  position: absolute; top: -20px; right: -20px;
+  width: 120px; height: 120px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(99,102,241,0.35) 0%, transparent 70%);
+}
+.card-hero-glow2 {
+  position: absolute; bottom: -30px; left: 30px;
+  width: 100px; height: 100px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(168,85,247,0.25) 0%, transparent 70%);
+}
+.card-logo-mark {
+  width: 22px; height: 22px; border-radius: 6px;
+  background: linear-gradient(135deg, #6366F1, #a855f7);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-serif); font-size: 11px; font-weight: 700; color: #fff;
+}
+.card-hero-name { font-family: var(--font-serif); font-size: 18px; font-weight: 600; color: #fff; letter-spacing: -0.3px; }
+.card-hero-role { font-size: 12px; color: rgba(255,255,255,0.65); margin-top: 2px; }
+
+/* contact field row */
+.cf-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 0; border-bottom: 1px solid var(--border);
+}
+.cf-row:last-child { border-bottom: none; }
+.cf-icon {
+  width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.cf-text { flex: 1; min-width: 0; }
+.cf-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-muted); }
+.cf-val { font-size: 13px; font-weight: 500; color: var(--text-primary); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ai followup */
+.fup-row {
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 7px;
+}
+.fup-row:last-child { border-bottom: none; }
+.fup-who { display: flex; align-items: center; gap: 8px; }
+.fup-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.fup-priority {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.3px;
+  padding: 2px 7px; border-radius: 100px;
+}
+.fup-msg { font-size: 12px; color: var(--text-secondary); line-height: 1.45; }
+.fup-reason { font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+.fup-acts { display: flex; gap: 5px; flex-wrap: wrap; }
+.chan-btn {
+  height: 28px; border-radius: 8px; border: none; cursor: pointer;
+  font-family: var(--font-sans); font-size: 11px; font-weight: 600;
+  padding: 0 10px; display: inline-flex; align-items: center; gap: 5px;
+  transition: opacity 0.1s;
+}
+.chan-btn:hover { opacity: 0.85; }
+
+/* ══════════════════════════════
+   TABLET LAYOUT
+══════════════════════════════ */
+#layout-tablet { flex-direction: row; background: var(--bg); }
+
+.sidebar.ico { width: 64px; }
+.sidebar.ico .logo-wordmark { display: none; }
+.sidebar.ico .sidebar-logo { justify-content: center; padding: 0; }
+.sidebar.ico .nav-item { justify-content: center; padding: 11px; }
+.sidebar.ico .nav-item span:not(.nav-icon):not(.nav-badge) { display: none; }
+.sidebar.ico .nav-badge { position: absolute; top: 5px; right: 5px; width: 8px; height: 8px; min-width: 0; padding: 0; font-size: 0; }
+.sidebar.ico .sidebar-footer { padding: 10px 8px 12px; display: flex; flex-direction: column; align-items: center; }
+.sidebar.ico .sidebar-profile { justify-content: center; padding: 10px; }
+.sidebar.ico .profile-name, .sidebar.ico .profile-handle { display: none; }
+.sidebar.ico .online-hint { display: none; }
+.sidebar.ico .nav-section-label { display: none; }
+
+/* ══════════════════════════════
+   MOBILE LAYOUT
+══════════════════════════════ */
+#layout-mobile {
+  justify-content: center; align-items: center;
+  background: #D5D3CE;
+}
+.mobile-shell {
+  width: 402px; height: 100%;
+  max-height: 874px;
+  background: var(--bg);
+  border-radius: 40px; overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.28), 0 0 0 1px rgba(0,0,0,0.1);
+  position: relative;
+}
+.statusbar {
+  height: 48px; padding: 14px 28px 0;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0; background: var(--bg);
+}
+.stime { font-size: 15px; font-weight: 700; }
+.sicons { display: flex; gap: 5px; align-items: center; }
+
+.mob-screen { flex: 1; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+.mob-content {
+  flex: 1; overflow-y: auto; scrollbar-width: none;
+  padding: 0 20px 90px;
+}
+.mob-content::-webkit-scrollbar { display: none; }
+.mob-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 0 16px;
+}
+.mob-title { font-family: var(--font-serif); font-size: 28px; font-weight: 500; letter-spacing: -0.8px; color: var(--text-primary); }
+.mob-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: linear-gradient(135deg, var(--indigo), var(--indigo-dark));
+  border: none; border-radius: 100px; padding: 8px 14px;
+  color: #fff; font-family: var(--font-sans); font-size: 13px; font-weight: 600; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(99,102,241,0.3);
+}
+.mob-icon-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--card); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* Tab bar — matches real app: .tab-bar position absolute, .tab-pill */
+.tab-bar {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  z-index: 10;
+}
+.tab-pill {
+  background: var(--card);
+  border-radius: 24px 24px 0 0;
+  height: 68px;
+  display: flex; align-items: center;
+  padding: 0 4px;
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.06);
+}
+.tab-item {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 3px;
+  color: var(--text-muted); font-size: 10px; font-weight: 500;
+  cursor: pointer; padding: 8px 0;
+}
+.tab-item.active { color: var(--text-primary); font-weight: 700; }
+.tab-scan-wrap {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; position: relative;
+}
+.tab-scan-ring {
+  position: absolute; top: -28px;
+  width: 58px; height: 58px; border-radius: 50%;
+  background: var(--card); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+.tab-scan-inner {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: rgba(99,102,241,0.08);
+  display: flex; align-items: center; justify-content: center;
+}
+.scan-lbl { font-size: 10px; font-weight: 600; color: var(--text-muted); margin-top: 34px; }
+
+/* mob place cards */
+.mob-place-card {
+  background: var(--card); border-radius: 20px; overflow: hidden;
+  border: 1.5px solid var(--border); cursor: pointer; margin-bottom: 10px;
+}
+.mob-place-card.active-place { border-color: var(--green); box-shadow: 0 4px 20px rgba(50,213,131,0.12); }
+.mob-place-body { padding: 13px 16px; display: flex; gap: 12px; align-items: flex-start; }
+</style>
+</head>
+<body>
+
+<!-- Preview switcher -->
+<div class="preview-tabs">
+  <button class="preview-tab active" onclick="showLayout('desktop',this)">
+    <span class="tab-dot"></span> Desktop <span class="tab-dim">≥ 900px</span>
+  </button>
+  <button class="preview-tab" onclick="showLayout('tablet',this)">
+    <span class="tab-dot"></span> Tablet <span class="tab-dim">480–899px</span>
+  </button>
+  <button class="preview-tab" onclick="showLayout('mobile',this)">
+    <span class="tab-dot"></span> Mobile <span class="tab-dim">&lt; 480px</span>
+  </button>
+</div>
+
+<!-- SVG icon defs (reusable) -->
+<svg style="display:none" aria-hidden="true">
+  <defs>
+    <!-- calendar -->
+    <symbol id="ico-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+    </symbol>
+    <!-- users -->
+    <symbol id="ico-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </symbol>
+    <!-- qr -->
+    <symbol id="ico-qr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+    </symbol>
+    <!-- creditcard -->
+    <symbol id="ico-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+    </symbol>
+    <!-- sparkles -->
+    <symbol id="ico-ai" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/><path d="M19 3v4"/><path d="M21 5h-4"/>
+    </symbol>
+    <!-- bell -->
+    <symbol id="ico-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+    </symbol>
+    <!-- search -->
+    <symbol id="ico-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </symbol>
+    <!-- plus -->
+    <symbol id="ico-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+      <path d="M12 5v14M5 12h14"/>
+    </symbol>
+    <!-- map-pin -->
+    <symbol id="ico-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+    </symbol>
+    <!-- mic2 (event) -->
+    <symbol id="ico-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>
+    </symbol>
+    <!-- building2 (workspace) -->
+    <symbol id="ico-building" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/>
+      <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/>
+    </symbol>
+    <!-- home (housing) -->
+    <symbol id="ico-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+    </symbol>
+    <!-- dumbbell (gym) -->
+    <symbol id="ico-gym" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/>
+      <path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/>
+    </symbol>
+    <!-- trophy (clubhouse) -->
+    <symbol id="ico-trophy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+      <path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+      <path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/>
+    </symbol>
+    <!-- party-popper -->
+    <symbol id="ico-party" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/>
+      <path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/>
+      <path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17"/>
+      <path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7"/>
+      <path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2z"/>
+    </symbol>
+    <!-- plane (travel) -->
+    <symbol id="ico-plane" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21 4 19 2c-2-2-4-2-5.5-.5L10 5 1.8 6.2a1 1 0 0 0-.5 1.7l4.3 4.3-2.1 4.2a1 1 0 0 0 1.1 1.4l4.6-1.2 4.2 4.3a1 1 0 0 0 1.7-.5z"/>
+    </symbol>
+    <!-- mail -->
+    <symbol id="ico-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+    </symbol>
+    <!-- phone -->
+    <symbol id="ico-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.41 2 2 0 0 1 3.58 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9a16 16 0 0 0 6.29 6.29l.46-.46a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 17z"/>
+    </symbol>
+    <!-- linkedin -->
+    <symbol id="ico-linkedin" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/>
+    </symbol>
+    <!-- globe -->
+    <symbol id="ico-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+    </symbol>
+    <!-- pencil -->
+    <symbol id="ico-pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+    </symbol>
+    <!-- trash -->
+    <symbol id="ico-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+      <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+    </symbol>
+    <!-- menu -->
+    <symbol id="ico-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>
+    </symbol>
+    <!-- bookmark -->
+    <symbol id="ico-bookmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>
+    </symbol>
+    <!-- send -->
+    <symbol id="ico-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+    </symbol>
+    <!-- x -->
+    <symbol id="ico-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+    </symbol>
+    <!-- more-horizontal -->
+    <symbol id="ico-more" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
+    </symbol>
+    <!-- message-circle -->
+    <symbol id="ico-msg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </symbol>
+    <!-- filter -->
+    <symbol id="ico-filter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+    </symbol>
+    <!-- user-plus -->
+    <symbol id="ico-userplus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+      <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+    </symbol>
+  </defs>
+</svg>
+
+<!-- ═══════════════════════════════════════
+     DESKTOP — Places tab (default)
+═══════════════════════════════════════ -->
+<div class="layout visible" id="layout-desktop">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">P</div>
+      <span class="logo-wordmark">PPL AI</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+
+      <!-- Places (active) -->
+      <button class="nav-item active">
+        <div class="nav-icon"><svg width="16" height="16"><use href="#ico-calendar"/></svg></div>
+        <span>Places</span>
+      </button>
+
+      <!-- Contacts -->
+      <button class="nav-item">
+        <div class="nav-icon"><svg width="16" height="16"><use href="#ico-users"/></svg></div>
+        <span>Contacts</span>
+        <span class="nav-badge">12</span>
+      </button>
+
+      <!-- Scan QR -->
+      <button class="nav-item scan-nav">
+        <div class="nav-icon"><svg width="16" height="16"><use href="#ico-qr"/></svg></div>
+        <span>Scan QR</span>
+      </button>
+
+      <!-- My Card -->
+      <button class="nav-item">
+        <div class="nav-icon"><svg width="16" height="16"><use href="#ico-card"/></svg></div>
+        <span>My Card</span>
+      </button>
+
+      <!-- AI Followups -->
+      <button class="nav-item">
+        <div class="nav-icon"><svg width="16" height="16"><use href="#ico-ai"/></svg></div>
+        <span>AI Followups</span>
+        <span class="nav-badge amber">5</span>
+      </button>
+
+      <div class="nav-section-label" style="margin-top:6px">Tools</div>
+
+      <button class="nav-item">
+        <div class="nav-icon"><svg width="16" height="16"><use href="#ico-msg"/></svg></div>
+        <span>Messages</span>
+      </button>
+      <button class="nav-item">
+        <div class="nav-icon" style="color:var(--amber)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3z"/><line x1="3" y1="8" x2="21" y2="8"/><path d="M16 13h2"/><path d="M12 13h2"/><path d="M8 13h2"/><path d="M16 17h2"/><path d="M12 17h2"/><path d="M8 17h2"/></svg></div>
+        <span>Leads CRM</span>
+      </button>
+      <button class="nav-item">
+        <div class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+        <span>My Team</span>
+      </button>
+      <button class="nav-item">
+        <div class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="6" height="6" rx="1"/><rect x="9" y="3" width="13" height="2" rx="1"/><rect x="2" y="10" width="6" height="6" rx="1"/><rect x="9" y="10" width="13" height="2" rx="1"/><rect x="2" y="17" width="6" height="6" rx="1"/><rect x="9" y="17" width="13" height="2" rx="1"/></svg></div>
+        <span>Analytics</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="sidebar-profile">
+        <div class="av av-sm av-p">PG</div>
+        <div>
+          <div class="profile-name">Paras Gupta</div>
+          <div class="profile-handle">Founder &amp; CEO · PPL AI</div>
+        </div>
+        <svg width="14" height="14" style="margin-left:auto;flex-shrink:0;color:var(--text-muted)"><use href="#ico-more"/></svg>
+      </button>
+      <div class="online-hint">
+        <div class="online-dot"></div>
+        TechSummit 2025 active
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="desktop-main">
+    <div class="topbar">
+      <div class="topbar-title">Places</div>
+      <div class="search-bar">
+        <svg width="14" height="14" style="color:var(--text-muted);flex-shrink:0"><use href="#ico-search"/></svg>
+        <span>Search places…</span>
+        <kbd>⌘K</kbd>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="icon-btn" title="Notifications">
+          <svg width="15" height="15" style="color:var(--text-secondary)"><use href="#ico-bell"/></svg>
+          <span class="notif-dot">3</span>
+        </button>
+        <button class="btn-primary">
+          <svg width="13" height="13" style="color:#fff"><use href="#ico-plus"/></svg>
+          New Place
+        </button>
+        <div class="av av-md av-p">PG</div>
+      </div>
+    </div>
+
+    <div class="content-area">
+      <!-- Filter bar -->
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div class="pill-row">
+          <button class="pill on">All</button>
+          <button class="pill off">Upcoming</button>
+          <button class="pill off">Past</button>
+        </div>
+        <div style="width:1px;height:22px;background:var(--border);margin:0 2px"></div>
+        <!-- type filter chips -->
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="type-pill" style="background:var(--elevated);color:var(--text-secondary);border-color:transparent;font-size:12px;font-weight:600;padding:5px 13px">All types</button>
+          <button class="type-pill" style="background:rgba(99,102,241,0.13);color:#6366F1;border-color:#6366F120">
+            <svg width="13" height="13"><use href="#ico-mic"/></svg> Event
+          </button>
+          <button class="type-pill" style="background:rgba(245,158,11,0.13);color:#F59E0B;border-color:#F59E0B20">
+            <svg width="13" height="13"><use href="#ico-building"/></svg> Workspace
+          </button>
+          <button class="type-pill" style="background:rgba(16,185,129,0.13);color:#10B981;border-color:#10B98120">
+            <svg width="13" height="13"><use href="#ico-home"/></svg> Housing
+          </button>
+          <button class="type-pill" style="background:rgba(239,68,68,0.13);color:#EF4444;border-color:#EF444420">
+            <svg width="13" height="13"><use href="#ico-gym"/></svg> Gym
+          </button>
+        </div>
+      </div>
+
+      <!-- 2-col grid -->
+      <div class="main-grid">
+
+        <!-- LEFT: Place cards -->
+        <div class="col">
+
+          <!-- TechSummit 2025 — ACTIVE -->
+          <div class="place-card active-place">
+            <div class="active-banner">
+              <div class="active-pill">
+                <span class="pulse-dot"></span>
+                <span class="active-label">ACTIVE</span>
+              </div>
+              <span class="active-count">
+                <svg width="11" height="11"><use href="#ico-users"/></svg>
+                6 contacts
+              </span>
+            </div>
+            <div class="place-body">
+              <div class="venue-badge" style="background:rgba(99,102,241,0.13);border-color:#6366F130">
+                <svg width="22" height="22" style="color:#6366F1"><use href="#ico-mic"/></svg>
+              </div>
+              <div class="place-info">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+                  <div class="place-name">TechSummit 2025</div>
+                  <div class="place-actions">
+                    <button class="place-act-btn" title="Pin"><svg width="11" height="11" style="transform:rotate(45deg)"><use href="#ico-send"/></svg></button>
+                    <button class="place-act-btn" title="Edit"><svg width="12" height="12"><use href="#ico-pencil"/></svg></button>
+                    <button class="place-act-btn" title="Delete"><svg width="11" height="11"><use href="#ico-trash"/></svg></button>
+                  </div>
+                </div>
+                <span class="place-type-chip" style="background:rgba(99,102,241,0.13);color:#6366F1">EVENT</span>
+                <div class="place-meta"><svg width="11" height="11" style="color:#6366F1;opacity:0.7"><use href="#ico-pin"/></svg> NIMHANS Convention Centre, Bangalore</div>
+                <div class="place-meta"><svg width="11" height="11" style="color:var(--text-muted)"><use href="#ico-calendar"/></svg> Apr 25 – Apr 27, 2026</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- WeWork Manyata — Workspace -->
+          <div class="place-card">
+            <div class="place-body">
+              <div class="venue-badge" style="background:rgba(245,158,11,0.13);border-color:#F59E0B30">
+                <svg width="22" height="22" style="color:#F59E0B"><use href="#ico-building"/></svg>
+              </div>
+              <div class="place-info">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+                  <div class="place-name">WeWork Manyata Tech Park</div>
+                  <div class="place-actions">
+                    <button class="place-act-btn"><svg width="11" height="11" style="transform:rotate(45deg)"><use href="#ico-send"/></svg></button>
+                    <button class="place-act-btn"><svg width="12" height="12"><use href="#ico-pencil"/></svg></button>
+                    <button class="place-act-btn"><svg width="11" height="11"><use href="#ico-trash"/></svg></button>
+                  </div>
+                </div>
+                <span class="place-type-chip" style="background:rgba(245,158,11,0.13);color:#F59E0B">WORKSPACE</span>
+                <div class="place-meta"><svg width="11" height="11" style="color:#F59E0B;opacity:0.7"><use href="#ico-pin"/></svg> Manyata Tech Park, Bangalore</div>
+                <div style="margin-top:8px;font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:4px">
+                  <svg width="11" height="11"><use href="#ico-users"/></svg> 3 contacts
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Prestige Shantiniketan — Housing -->
+          <div class="place-card">
+            <div class="place-body">
+              <div class="venue-badge" style="background:rgba(16,185,129,0.13);border-color:#10B98130">
+                <svg width="22" height="22" style="color:#10B981"><use href="#ico-home"/></svg>
+              </div>
+              <div class="place-info">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+                  <div class="place-name">Prestige Shantiniketan</div>
+                  <div class="place-actions">
+                    <button class="place-act-btn"><svg width="11" height="11" style="transform:rotate(45deg)"><use href="#ico-send"/></svg></button>
+                    <button class="place-act-btn"><svg width="12" height="12"><use href="#ico-pencil"/></svg></button>
+                    <button class="place-act-btn"><svg width="11" height="11"><use href="#ico-trash"/></svg></button>
+                  </div>
+                </div>
+                <span class="place-type-chip" style="background:rgba(16,185,129,0.13);color:#10B981">HOUSING</span>
+                <div class="place-meta"><svg width="11" height="11" style="color:#10B981;opacity:0.7"><use href="#ico-pin"/></svg> Whitefield, Bangalore</div>
+                <div style="margin-top:8px;font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:4px">
+                  <svg width="11" height="11"><use href="#ico-users"/></svg> 2 contacts
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gold's Gym — Gym -->
+          <div class="place-card">
+            <div class="place-body">
+              <div class="venue-badge" style="background:rgba(239,68,68,0.13);border-color:#EF444430">
+                <svg width="22" height="22" style="color:#EF4444"><use href="#ico-gym"/></svg>
+              </div>
+              <div class="place-info">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+                  <div class="place-name">Gold's Gym Koramangala</div>
+                  <div class="place-actions">
+                    <button class="place-act-btn"><svg width="11" height="11" style="transform:rotate(45deg)"><use href="#ico-send"/></svg></button>
+                    <button class="place-act-btn"><svg width="12" height="12"><use href="#ico-pencil"/></svg></button>
+                    <button class="place-act-btn"><svg width="11" height="11"><use href="#ico-trash"/></svg></button>
+                  </div>
+                </div>
+                <span class="place-type-chip" style="background:rgba(239,68,68,0.13);color:#EF4444">GYM</span>
+                <div class="place-meta"><svg width="11" height="11" style="color:#EF4444;opacity:0.7"><use href="#ico-pin"/></svg> Koramangala, Bangalore</div>
+                <div style="margin-top:8px;font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:4px">
+                  <svg width="11" height="11"><use href="#ico-users"/></svg> 1 contact
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick-add row -->
+          <div>
+            <div class="quick-add-label">Add a place</div>
+            <div class="quick-add-row">
+              <button class="quick-add-btn" style="background:rgba(99,102,241,0.13);color:#6366F1;border-color:#6366F128">
+                <svg width="13" height="13"><use href="#ico-mic"/></svg> Event
+              </button>
+              <button class="quick-add-btn" style="background:rgba(245,158,11,0.13);color:#F59E0B;border-color:#F59E0B28">
+                <svg width="13" height="13"><use href="#ico-building"/></svg> Workspace
+              </button>
+              <button class="quick-add-btn" style="background:rgba(14,165,233,0.13);color:#0EA5E9;border-color:#0EA5E928">
+                <svg width="13" height="13"><use href="#ico-plane"/></svg> Travel
+              </button>
+              <button class="quick-add-btn" style="background:rgba(16,185,129,0.13);color:#10B981;border-color:#10B98128">
+                <svg width="13" height="13"><use href="#ico-home"/></svg> Housing
+              </button>
+              <button class="quick-add-btn" style="background:rgba(239,68,68,0.13);color:#EF4444;border-color:#EF444428">
+                <svg width="13" height="13"><use href="#ico-gym"/></svg> Gym
+              </button>
+              <button class="quick-add-btn" style="background:rgba(139,92,246,0.13);color:#8B5CF6;border-color:#8B5CF628">
+                <svg width="13" height="13"><use href="#ico-trophy"/></svg> Clubhouse
+              </button>
+              <button class="quick-add-btn" style="background:rgba(249,115,22,0.13);color:#F97316;border-color:#F9731628">
+                <svg width="13" height="13"><use href="#ico-party"/></svg> Party
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Active place + contacts -->
+        <div class="col">
+
+          <!-- Active place card -->
+          <div class="pcard">
+            <div class="pcard-hdr">
+              <div>
+                <div class="pcard-title">Active Place</div>
+                <div class="pcard-sub">Contacts tagged to this event</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:5px;background:rgba(50,213,131,0.1);border-radius:100px;padding:3px 9px">
+                <div style="width:5px;height:5px;border-radius:50%;background:var(--green);animation:blink 1.6s ease-in-out infinite"></div>
+                <span style="font-size:11px;font-weight:700;color:#059669">LIVE</span>
+              </div>
+            </div>
+            <div class="pcard-body">
+              <!-- Mini place hero -->
+              <div style="background:linear-gradient(135deg,rgba(99,102,241,0.07),rgba(50,213,131,0.07));border:1px solid rgba(99,102,241,0.14);border-radius:12px;padding:13px;margin-bottom:12px;position:relative;overflow:hidden">
+                <div style="position:absolute;top:-16px;right:-16px;width:60px;height:60px;border-radius:50%;background:rgba(99,102,241,0.06)"></div>
+                <div style="font-size:10px;font-weight:700;color:var(--indigo);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">TechSummit 2025</div>
+                <div style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;margin-bottom:10px">
+                  <svg width="11" height="11" style="color:var(--indigo);opacity:0.7"><use href="#ico-pin"/></svg>
+                  NIMHANS, Bangalore
+                </div>
+                <div style="display:flex;gap:20px">
+                  <div>
+                    <div style="font-family:var(--font-serif);font-size:22px;font-weight:600;line-height:1;color:var(--text-primary)">6</div>
+                    <div style="font-size:10px;color:var(--text-muted);margin-top:2px">Contacts</div>
+                  </div>
+                  <div>
+                    <div style="font-family:var(--font-serif);font-size:22px;font-weight:600;line-height:1;color:var(--text-primary)">Apr 25</div>
+                    <div style="font-size:10px;color:var(--text-muted);margin-top:2px">Start date</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Contacts at this event -->
+              <div class="sec-hdr"><span class="sec-title">At this event</span><button class="sec-action">View all</button></div>
+              <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+                <!-- Sarah Raines -->
+                <div class="crow">
+                  <div class="av av-lg av-p">SR</div>
+                  <div class="crow-info">
+                    <div class="crow-name">Sarah Raines</div>
+                    <div class="crow-role">Head of Growth · Stripe</div>
+                  </div>
+                  <div class="crow-actions">
+                    <button class="apill">Chat</button>
+                    <button class="apill">Card</button>
+                  </div>
+                </div>
+                <!-- Marcus Kim -->
+                <div class="crow">
+                  <div class="av av-lg av-g">MK</div>
+                  <div class="crow-info">
+                    <div class="crow-name">Marcus Kim</div>
+                    <div class="crow-role">Product Lead · Linear</div>
+                  </div>
+                  <div class="crow-actions">
+                    <button class="apill">Chat</button>
+                    <button class="apill">Card</button>
+                  </div>
+                </div>
+                <!-- Anika Torres -->
+                <div class="crow">
+                  <div class="av av-lg av-a">AT</div>
+                  <div class="crow-info">
+                    <div class="crow-name">Anika Torres</div>
+                    <div class="crow-role">CEO · Bloom AI</div>
+                  </div>
+                  <div class="crow-actions">
+                    <button class="apill">Chat</button>
+                    <button class="apill">Card</button>
+                  </div>
+                </div>
+                <!-- Raj Joshi -->
+                <div class="crow">
+                  <div class="av av-lg av-r">RJ</div>
+                  <div class="crow-info">
+                    <div class="crow-name">Raj Joshi</div>
+                    <div class="crow-role">Partner · Sequoia</div>
+                  </div>
+                  <div class="crow-actions">
+                    <button class="apill">Chat</button>
+                    <button class="apill">Card</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Switch / activate hint -->
+          <div class="pcard">
+            <div class="pcard-hdr">
+              <div class="pcard-title">Switch Active Place</div>
+            </div>
+            <div class="pcard-body" style="display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;border:1px solid var(--border);cursor:pointer">
+                <div style="width:34px;height:34px;border-radius:10px;background:rgba(245,158,11,0.13);border:1px solid #F59E0B30;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                  <svg width="18" height="18" style="color:#F59E0B"><use href="#ico-building"/></svg>
+                </div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:13px;font-weight:600;color:var(--text-primary)">WeWork Manyata</div>
+                  <div style="font-size:11px;color:var(--text-muted)">3 contacts</div>
+                </div>
+                <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px">Activate</button>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;border:1px solid var(--border);cursor:pointer">
+                <div style="width:34px;height:34px;border-radius:10px;background:rgba(16,185,129,0.13);border:1px solid #10B98130;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                  <svg width="18" height="18" style="color:#10B981"><use href="#ico-home"/></svg>
+                </div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:13px;font-weight:600;color:var(--text-primary)">Prestige Shantiniketan</div>
+                  <div style="font-size:11px;color:var(--text-muted)">2 contacts</div>
+                </div>
+                <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px">Activate</button>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /right col -->
+      </div><!-- /main-grid -->
+    </div><!-- /content-area -->
+  </div><!-- /desktop-main -->
+</div><!-- /layout-desktop -->
+
+
+<!-- ═══════════════════════════════════════
+     TABLET — Contacts tab
+═══════════════════════════════════════ -->
+<div class="layout" id="layout-tablet">
+  <aside class="sidebar ico">
+    <div class="sidebar-logo">
+      <div class="logo-mark">P</div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item">
+        <div class="nav-icon"><svg width="16" height="16"><use href="#ico-calendar"/></svg></div>
+        <span>Places</span>
+      </button>
+      <button class="nav-item active">
+        <div class="nav-icon"><svg width="16" height="16"><use href="#ico-users"/></svg></div>
+        <span>Contacts</span>
+        <span class="nav-badge">12</span>
+      </button>
+      <button class="nav-item scan-nav">
+        <div class="nav-icon"><svg width="16" height="16"><use href="#ico-qr"/></svg></div>
+        <span>Scan</span>
+      </button>
+      <button class="nav-item">
+        <div class="nav-icon"><svg width="16" height="16"><use href="#ico-card"/></svg></div>
+        <span>My Card</span>
+      </button>
+      <button class="nav-item">
+        <div class="nav-icon"><svg width="16" height="16"><use href="#ico-ai"/></svg></div>
+        <span>AI</span>
+        <span class="nav-badge amber">5</span>
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="sidebar-profile">
+        <div class="av av-sm av-p">PG</div>
+      </button>
+    </div>
+  </aside>
+
+  <div class="desktop-main">
+    <div class="topbar">
+      <div class="topbar-title">All Contacts</div>
+      <div class="search-bar" style="width:180px">
+        <svg width="14" height="14" style="color:var(--text-muted);flex-shrink:0"><use href="#ico-search"/></svg>
+        <span>Search…</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="icon-btn"><svg width="15" height="15" style="color:var(--text-secondary)"><use href="#ico-filter"/></svg></button>
+        <button class="btn-primary"><svg width="13" height="13" style="color:#fff"><use href="#ico-userplus"/></svg> Add</button>
+        <div class="av av-md av-p">PG</div>
+      </div>
+    </div>
+
+    <div class="content-area" style="padding:16px 20px">
+      <!-- Filter row -->
+      <div class="pill-row" style="margin-bottom:4px">
+        <button class="pill on">All</button>
+        <button class="pill off">#fintech</button>
+        <button class="pill off">#devtools</button>
+        <button class="pill off">#seed</button>
+        <button class="pill off">#vc</button>
+        <button class="pill off">Bookmarked</button>
+      </div>
+
+      <!-- Contact list -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden">
+        <!-- Sarah Raines -->
+        <div class="crow" style="padding:12px 18px">
+          <div class="av av-lg av-p">SR</div>
+          <div class="crow-info">
+            <div class="crow-name">Sarah Raines</div>
+            <div class="crow-role">Head of Growth · Stripe</div>
+          </div>
+          <span class="tag t-indigo">#fintech</span>
+          <span class="tag t-muted" style="margin-left:4px">TechSummit 2025</span>
+          <div class="crow-actions" style="margin-left:8px">
+            <button class="apill">Chat</button>
+            <button class="apill">Card</button>
+          </div>
+        </div>
+        <!-- Marcus Kim -->
+        <div class="crow" style="padding:12px 18px">
+          <div class="av av-lg av-g">MK</div>
+          <div class="crow-info">
+            <div class="crow-name">Marcus Kim</div>
+            <div class="crow-role">Product Lead · Linear</div>
+          </div>
+          <span class="tag t-teal">#devtools</span>
+          <span class="tag t-muted" style="margin-left:4px">TechSummit 2025</span>
+          <div class="crow-actions" style="margin-left:8px">
+            <button class="apill">Chat</button>
+            <button class="apill">Card</button>
+          </div>
+        </div>
+        <!-- Anika Torres -->
+        <div class="crow" style="padding:12px 18px">
+          <div class="av av-lg av-a">AT</div>
+          <div class="crow-info">
+            <div class="crow-name">Anika Torres</div>
+            <div class="crow-role">CEO · Bloom AI</div>
+          </div>
+          <span class="tag t-green">#seed</span>
+          <div class="crow-actions" style="margin-left:8px">
+            <button class="apill">Chat</button>
+            <button class="apill">Card</button>
+          </div>
+        </div>
+        <!-- Raj Joshi -->
+        <div class="crow" style="padding:12px 18px">
+          <div class="av av-lg av-r">RJ</div>
+          <div class="crow-info">
+            <div class="crow-name">Raj Joshi</div>
+            <div class="crow-role">Partner · Sequoia</div>
+          </div>
+          <span class="tag t-amber">#vc</span>
+          <div class="crow-actions" style="margin-left:8px">
+            <button class="apill">Chat</button>
+            <button class="apill">Card</button>
+          </div>
+        </div>
+        <!-- Lena Park -->
+        <div class="crow" style="padding:12px 18px">
+          <div class="av av-lg av-c">LP</div>
+          <div class="crow-info">
+            <div class="crow-name">Lena Park</div>
+            <div class="crow-role">Design Lead · Figma</div>
+          </div>
+          <span class="tag t-coral">#design</span>
+          <div class="crow-actions" style="margin-left:8px">
+            <button class="apill">Chat</button>
+            <button class="apill">Card</button>
+          </div>
+        </div>
+        <!-- Devon Shaw -->
+        <div class="crow" style="padding:12px 18px">
+          <div class="av av-lg av-t">DS</div>
+          <div class="crow-info">
+            <div class="crow-name">Devon Shaw</div>
+            <div class="crow-role">Enterprise AE · Salesforce</div>
+          </div>
+          <span class="tag t-muted">#crm</span>
+          <div class="crow-actions" style="margin-left:8px">
+            <button class="apill">Chat</button>
+            <button class="apill">Card</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════
+     MOBILE — My Card screen
+═══════════════════════════════════════ -->
+<div class="layout" id="layout-mobile">
+  <div class="mobile-shell">
+    <!-- Status bar -->
+    <div class="statusbar">
+      <span class="stime">9:41</span>
+      <div class="sicons">
+        <!-- signal -->
+        <svg width="17" height="12" viewBox="0 0 17 12" fill="var(--text-primary)">
+          <rect x="0" y="3" width="3" height="9" rx="1" opacity="0.4"/>
+          <rect x="4.5" y="2" width="3" height="10" rx="1" opacity="0.6"/>
+          <rect x="9" y="0" width="3" height="12" rx="1" opacity="0.8"/>
+          <rect x="13.5" y="0" width="3" height="12" rx="1"/>
+        </svg>
+        <!-- battery -->
+        <svg width="25" height="12" viewBox="0 0 25 12" fill="var(--text-primary)">
+          <rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="currentColor" stroke-opacity="0.35" fill="none"/>
+          <rect x="2" y="2" width="17" height="8" rx="2"/>
+          <path d="M23 4v4a2 2 0 0 0 0-4z" fill="currentColor" opacity="0.4"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- My Card screen -->
+    <div class="mob-screen">
+      <div class="mob-content">
+        <!-- Header -->
+        <div class="mob-hdr">
+          <div class="mob-title">My Card</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <div class="mob-icon-btn">
+              <svg width="18" height="18" style="color:var(--text-secondary)"><use href="#ico-menu"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hero card -->
+        <div class="card-hero">
+          <div class="card-hero-glow1"></div>
+          <div class="card-hero-glow2"></div>
+          <!-- Grid texture overlay -->
+          <div style="position:absolute;inset:0;opacity:0.04;background-image:linear-gradient(rgba(255,255,255,0.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.5) 1px,transparent 1px);background-size:24px 24px;border-radius:16px"></div>
+          <div style="position:relative;z-index:1">
+            <div class="card-logo-mark">P</div>
+          </div>
+          <div style="position:relative;z-index:1">
+            <div class="card-hero-name">Paras Gupta</div>
+            <div class="card-hero-role">Founder &amp; CEO · PPL AI</div>
+          </div>
+        </div>
+
+        <!-- Action buttons: Share / Edit / Export vCard -->
+        <div style="display:flex;gap:8px;margin-bottom:18px">
+          <button style="flex:1;height:40px;border-radius:12px;border:none;background:var(--indigo);color:#fff;font-family:var(--font-sans);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+            <svg width="14" height="14" style="color:#fff"><use href="#ico-send"/></svg> Share
+          </button>
+          <button style="flex:1;height:40px;border-radius:12px;border:1.5px solid var(--border);background:var(--card);color:var(--text-primary);font-family:var(--font-sans);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+            <svg width="14" height="14" style="color:var(--text-secondary)"><use href="#ico-pencil"/></svg> Edit
+          </button>
+          <button style="height:40px;width:44px;border-radius:12px;border:1.5px solid var(--border);background:var(--card);cursor:pointer;display:flex;align-items:center;justify-content:center">
+            <svg width="14" height="14" style="color:var(--text-secondary)"><use href="#ico-more"/></svg>
+          </button>
+        </div>
+
+        <!-- Contact fields -->
+        <div style="background:var(--card);border-radius:18px;border:1px solid var(--border);padding:4px 14px;margin-bottom:14px">
+          <div class="cf-row">
+            <div class="cf-icon" style="background:rgba(99,102,241,0.1)">
+              <svg width="15" height="15" style="color:var(--indigo)"><use href="#ico-mail"/></svg>
+            </div>
+            <div class="cf-text">
+              <div class="cf-label">Email</div>
+              <div class="cf-val">paras@pplai.co</div>
+            </div>
+          </div>
+          <div class="cf-row">
+            <div class="cf-icon" style="background:rgba(50,213,131,0.12)">
+              <svg width="15" height="15" style="color:#059669"><use href="#ico-phone"/></svg>
+            </div>
+            <div class="cf-text">
+              <div class="cf-label">Phone</div>
+              <div class="cf-val">+1 (415) 555-0192</div>
+            </div>
+          </div>
+          <div class="cf-row">
+            <div class="cf-icon" style="background:rgba(37,211,102,0.12)">
+              <!-- WhatsApp icon -->
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            </div>
+            <div class="cf-text">
+              <div class="cf-label">WhatsApp</div>
+              <div class="cf-val">+1 (415) 555-0192</div>
+            </div>
+          </div>
+          <div class="cf-row">
+            <div class="cf-icon" style="background:rgba(10,102,194,0.1)">
+              <svg width="15" height="15" style="color:#0A66C2"><use href="#ico-linkedin"/></svg>
+            </div>
+            <div class="cf-text">
+              <div class="cf-label">LinkedIn</div>
+              <div class="cf-val">linkedin.com/in/parasgupta</div>
+            </div>
+          </div>
+          <div class="cf-row">
+            <div class="cf-icon" style="background:rgba(99,102,241,0.1)">
+              <svg width="15" height="15" style="color:var(--indigo)"><use href="#ico-globe"/></svg>
+            </div>
+            <div class="cf-text">
+              <div class="cf-label">Website</div>
+              <div class="cf-val">pplai.co</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Seeking / Offering -->
+        <div style="background:var(--card);border-radius:18px;border:1px solid var(--border);padding:14px;margin-bottom:14px">
+          <div style="margin-bottom:12px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:4px">Seeking</div>
+            <div style="font-size:13px;color:var(--text-primary);line-height:1.4">Distribution partners &amp; early customers for AI tools</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:4px">Offering</div>
+            <div style="font-size:13px;color:var(--text-primary);line-height:1.4">AI workflow automation &amp; custom LLM integrations</div>
+          </div>
+        </div>
+
+        <!-- QR share link -->
+        <div style="background:var(--card);border-radius:18px;border:1px solid var(--border);padding:14px;display:flex;align-items:center;gap:12px;margin-bottom:8px">
+          <div style="width:54px;height:54px;background:var(--elevated);border-radius:10px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg width="28" height="28" style="color:var(--text-secondary)"><use href="#ico-qr"/></svg>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:var(--text-primary)">Your share link</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">pplai.app/u/paras</div>
+          </div>
+          <button style="padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--elevated);font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer">Copy</button>
+        </div>
+
+      </div><!-- /mob-content -->
+
+      <!-- Tab bar — matches real .tab-bar > .tab-pill structure -->
+      <div class="tab-bar">
+        <div class="tab-pill">
+          <!-- Places -->
+          <div class="tab-item">
+            <svg width="20" height="20"><use href="#ico-calendar"/></svg>
+            <span>Places</span>
+          </div>
+          <!-- Contacts -->
+          <div class="tab-item">
+            <svg width="20" height="20"><use href="#ico-users"/></svg>
+            <span>Contacts</span>
+          </div>
+          <!-- Scan (center elevated) -->
+          <div class="tab-scan-wrap">
+            <div class="tab-scan-ring">
+              <div class="tab-scan-inner">
+                <svg width="22" height="22" style="color:var(--indigo)"><use href="#ico-qr"/></svg>
+              </div>
+            </div>
+            <span class="scan-lbl">Scan</span>
+          </div>
+          <!-- My Card (active) -->
+          <div class="tab-item active">
+            <svg width="20" height="20"><use href="#ico-card"/></svg>
+            <span>My Card</span>
+          </div>
+          <!-- AI -->
+          <div class="tab-item">
+            <div style="position:relative">
+              <svg width="20" height="20"><use href="#ico-ai"/></svg>
+              <div style="position:absolute;top:-3px;right:-3px;width:8px;height:8px;border-radius:50%;background:var(--amber);border:2px solid var(--card)"></div>
+            </div>
+            <span>AI</span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /mob-screen -->
+  </div><!-- /mobile-shell -->
+</div><!-- /layout-mobile -->
+
+<script>
+function showLayout(id, btn) {
+  document.querySelectorAll('.layout').forEach(el => el.classList.remove('visible'));
+  document.querySelectorAll('.preview-tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('layout-' + id).classList.add('visible');
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>

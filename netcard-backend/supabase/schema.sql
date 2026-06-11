@@ -152,3 +152,20 @@ ALTER TABLE ai_followups  ENABLE ROW LEVEL SECURITY;
 
 -- Since we use the service-role key server-side, no RLS policies needed.
 -- Add them if you ever expose Supabase directly to the client.
+
+-- =============================================
+-- AUDIT LOGS (immutable — no UPDATE/DELETE)
+-- =============================================
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       TEXT        NOT NULL,   -- clerk_user_id (profile may be deleted)
+  action        TEXT        NOT NULL,   -- create | update | delete | generate
+  resource_type TEXT        NOT NULL,   -- contact | event | followup | profile | tag | note
+  resource_id   TEXT        NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS audit_logs_user_created
+  ON audit_logs(user_id, created_at DESC);
+
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;

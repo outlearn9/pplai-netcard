@@ -1,6 +1,15 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Pencil, Mail, Phone, Send, Search, Gift, Copy, Globe, X, Check, Menu } from 'lucide-react'
+import { Pencil, Mail, Phone, Send, Search, Gift, Copy, Globe, X, Check, Menu, AlertCircle } from 'lucide-react'
+
+const FIELD_LABELS = {
+  title:    'Job title',
+  company:  'Company',
+  phone:    'Phone number',
+  linkedin: 'LinkedIn',
+  seeking:  'What you\'re seeking',
+  offering: 'What you\'re offering',
+}
 
 const WAIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="#25D366">
@@ -66,7 +75,7 @@ function loadProfile() {
   try { return { ...INITIAL, ...JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}') } } catch { return INITIAL }
 }
 
-export default function MyCardScreen({ navigate, onMenuOpen }) {
+export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = [], onFieldsFilled }) {
   const [profile, setProfile] = useState(loadProfile)
   const [draft, setDraft] = useState(loadProfile)
   const [showEdit, setShowEdit] = useState(false)
@@ -82,6 +91,14 @@ export default function MyCardScreen({ navigate, onMenuOpen }) {
     setProfile({ ...draft })
     try { localStorage.setItem(PROFILE_KEY, JSON.stringify(draft)) } catch {}
     setShowEdit(false)
+    // Check if previously-missing fields are now filled and dismiss the banner
+    if (onFieldsFilled && incompleteFields.length > 0) {
+      const stillMissing = incompleteFields.filter(f => {
+        const map = { title: 'title', company: 'company', phone: 'phone', linkedin: 'linkedin', seeking: 'seeking', offering: 'offering' }
+        return !draft[map[f]]?.trim()
+      })
+      if (stillMissing.length === 0) onFieldsFilled()
+    }
     // Sync to backend — fire and forget, localStorage is source of truth for display
     fetch('/api/profile', {
       method: 'PATCH',
@@ -149,6 +166,40 @@ export default function MyCardScreen({ navigate, onMenuOpen }) {
             <Pencil size={13} /> Edit
           </button>
         </div>
+
+        {/* Incomplete fields banner — only shown for returning users with gaps */}
+        {incompleteFields.length > 0 && (
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(245,158,11,0.1), rgba(217,119,6,0.08))',
+            border: '1px solid rgba(245,158,11,0.3)',
+            borderRadius: 14,
+            padding: '12px 14px',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 10,
+          }}>
+            <AlertCircle size={16} color="#D97706" style={{ flexShrink: 0, marginTop: 1 }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#92400E', fontFamily: 'var(--font-sans)', marginBottom: 3 }}>
+                Complete your card
+              </div>
+              <div style={{ fontSize: 12, color: '#B45309', fontFamily: 'var(--font-sans)', lineHeight: 1.4 }}>
+                Missing: {incompleteFields.map(f => FIELD_LABELS[f] || f).join(', ')}
+              </div>
+              <button
+                onClick={openEdit}
+                style={{
+                  marginTop: 8, padding: '6px 14px', borderRadius: 8,
+                  border: 'none', background: '#D97706', color: '#fff',
+                  fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)',
+                }}
+              >
+                Complete now →
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Hero Card */}
         <div style={{

@@ -349,8 +349,14 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false)
   const [shellEl, setShellEl] = useState(null)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [incompleteFields, setIncompleteFields] = useState([])
   const SCREEN_MAP = makeScreenMap(() => setShowProfile(true))
-  const renderScreen = SCREEN_MAP[nav.screen] ?? SCREEN_MAP.home
+  // Pass incompleteFields to mycard so it can show fill-in prompt
+  const screenMapWithCard = {
+    ...SCREEN_MAP,
+    mycard: (nav) => <MyCardScreen navigate={nav.navigate} onMenuOpen={() => setShowProfile(true)} incompleteFields={incompleteFields} onFieldsFilled={() => setIncompleteFields([])} />,
+  }
+  const renderScreen = screenMapWithCard[nav.screen] ?? screenMapWithCard.home
 
   // Poll unread notifications count every 60s
   const fetchUnread = useCallback(() => {
@@ -369,12 +375,73 @@ export default function App() {
     return () => clearInterval(id)
   }, [authed, fetchUnread])
 
-  // New-user check — intercept to onboarding until they complete it
+  /**
+   * After auth: decide whether to show onboarding (new user) or go straight to
+   * the card (returning/existing user).
+   *
+   * Strategy:
+   *  1. If onboarding was already completed on this device → do nothing extra.
+   *  2. Otherwise fetch /api/profile:
+   *     - Profile has a name  → existing user. Mark complete, stay on home/mycard.
+   *       Also detect which optional fields are still empty and store them so
+   *       MyCardScreen can show a completion prompt.
+   *     - Profile has no name → brand-new user. Navigate to onboarding.
+   *     - Network error       → fall back to onboarding so new users aren't stuck.
+   */
   useEffect(() => {
     if (!authed) return
-    if (!localStorage.getItem('netcard_onboarding_complete')) {
-      nav.navigate('onboarding')
-    }
+    if (localStorage.getItem('netcard_onboarding_complete')) return
+
+    fetch(`${API}/api/profile`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(d => {
+        const profile = d?.data || {}
+        if (profile.name) {
+          // ── Returning / existing user ──────────────────────────────────────
+          // Persist profile to localStorage so UI can render without extra API calls
+          const cached = (() => { try { return JSON.parse(localStorage.getItem('netcard_my_profile') || '{}') } catch { return {} } })()
+          localStorage.setItem('netcard_my_profile', JSON.stringify({
+            name:     profile.name     || cached.name     || '',
+            title:    profile.role     || cached.title    || '',
+            company:  profile.company  || cached.company  || '',
+            email:    profile.email    || cached.email    || '',
+            phone:    profile.phone    || cached.phone    || '',
+            linkedin: profile.linkedin_url || cached.linkedin || '',
+            web:      profile.website  || cached.web      || '',
+            seeking:  profile.seeking  || cached.seeking  || '',
+            offering: profile.offering || cached.offering || '',
+          }))
+
+          // Figure out which profile fields are still missing
+          const missing = []
+          if (!profile.role)         missing.push('title')
+          if (!profile.company)      missing.push('company')
+          if (!profile.phone)        missing.push('phone')
+          if (!profile.linkedin_url) missing.push('linkedin')
+          if (!profile.seeking)      missing.push('seeking')
+          if (!profile.offering)     missing.push('offering')
+          setIncompleteFields(missing)
+
+          // Mark onboarding done so we never re-check on this device
+          localStorage.setItem('netcard_onboarding_complete', '1')
+          // Navigate to their card rather than onboarding
+          nav.navigate('mycard')
+        } else {
+          // ── Brand-new user ─────────────────────────────────────────────────
+          nav.navigate('onboarding')
+        }
+      })
+      .catch(() => {
+        // Network error: if we have no cached profile at all, send to onboarding
+        // so a new user isn't stuck; if there's a cached profile they're returning.
+        const cached = (() => { try { return JSON.parse(localStorage.getItem('netcard_my_profile') || '{}') } catch { return {} } })()
+        if (cached.name) {
+          localStorage.setItem('netcard_onboarding_complete', '1')
+          nav.navigate('mycard')
+        } else {
+          nav.navigate('onboarding')
+        }
+      })
   }, [authed])
 
   // Seed sample data once per device after first auth

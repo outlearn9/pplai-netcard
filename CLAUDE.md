@@ -117,7 +117,8 @@
 
 ## 🎯 Active Goals
 <!-- Check off items here as they're completed; remove when shipped -->
-- [ ] Run `supabase/notifications_schema.sql` and `supabase/seed_schema.sql` in Supabase SQL Editor (manual step)
+- [x] Run `supabase/notifications_schema.sql` and `supabase/seed_schema.sql` in Supabase SQL Editor
+- [x] Run `supabase/migrations/001_missing_columns.sql` — adds `audit_logs`, `contacts.met_*`, `contacts.source`, `profiles.web_url`
 
 <!-- Reference docs (not needed during coding sessions) -->
 > [CHECKLIST.md](./CHECKLIST.md) · [AUDIT.md](./AUDIT.md) · [SETUP.md](./SETUP.md)

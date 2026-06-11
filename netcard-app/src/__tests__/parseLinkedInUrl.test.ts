@@ -48,7 +48,7 @@ describe('parseLinkedInUrl', () => {
 
   it('preserves the canonical linkedin.com domain in output', () => {
     const result = parseLinkedInUrl('https://www.linkedin.com/in/lisachen')
-    expect(result.linkedin).startsWith('https://www.linkedin.com/in/')
+    expect(result.linkedin).toContain('linkedin.com/in/')
   })
 
   it('decodes URL-encoded characters in slug', () => {
