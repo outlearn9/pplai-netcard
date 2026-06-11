@@ -11,7 +11,9 @@ const ProfileSchema = z.object({
   company:         z.string().optional(),
   email:           z.string().email().optional(),
   phone:           z.string().optional(),
+  whatsapp:        z.string().optional(),
   linkedin_url:    z.string().url().optional().or(z.literal('')),
+  website:         z.string().optional(),   // stored as web_url in DB
   avatar_initials: z.string().max(3).optional(),
   avatar_gradient: z.string().optional(),
   seeking:         z.string().optional(),
@@ -29,26 +31,35 @@ export async function GET() {
   }
 }
 
+async function updateProfile(req: NextRequest) {
+  const profile = await getProfile()
+  const body = await req.json()
+  const parsed = ProfileSchema.safeParse(body)
+  if (!parsed.success) return err(parsed.error.message)
+
+  // Map frontend field names to DB column names
+  const { website, ...rest } = parsed.data
+  const dbFields: Record<string, unknown> = { ...rest }
+  if (website !== undefined) dbFields.web_url = website
+
+  const { data, error } = await supabaseAdmin
+    .from('profiles')
+    .update(dbFields)
+    .eq('id', profile.id)
+    .select()
+    .single()
+
+  if (error) throw error
+  await logAudit(profile.id, 'update', 'profile', profile.id)
+  return ok(data)
+}
+
 export async function PUT(req: NextRequest) {
-  try {
-    const profile = await getProfile()
-    const body = await req.json()
-    const parsed = ProfileSchema.safeParse(body)
-    if (!parsed.success) return err(parsed.error.message)
+  try { return await updateProfile(req) } catch (e) { return handleError(e) }
+}
 
-    const { data, error } = await supabaseAdmin
-      .from('profiles')
-      .update(parsed.data)
-      .eq('id', profile.id)
-      .select()
-      .single()
-
-    if (error) throw error
-    await logAudit(profile.id, 'update', 'profile', profile.id)
-    return ok(data)
-  } catch (e) {
-    return handleError(e)
-  }
+export async function PATCH(req: NextRequest) {
+  try { return await updateProfile(req) } catch (e) { return handleError(e) }
 }
 
 /**

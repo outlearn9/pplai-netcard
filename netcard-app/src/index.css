@@ -466,9 +466,11 @@ textarea.input-field {
 
 /* Gradient avatar backgrounds */
 .grad-purple { background: linear-gradient(135deg, #6366F1, #E85A4F); }
-.grad-green { background: linear-gradient(135deg, #32D583, #059669); }
-.grad-amber { background: linear-gradient(135deg, #FFB547, #E85A4F); }
-.grad-blue { background: linear-gradient(135deg, #6366F1, #32D583); }
+.grad-green  { background: linear-gradient(135deg, #32D583, #059669); }
+.grad-amber  { background: linear-gradient(135deg, #FFB547, #E85A4F); }
+.grad-blue   { background: linear-gradient(135deg, #6366F1, #32D583); }
+.grad-coral  { background: linear-gradient(135deg, #E85A4F, #FFB547); }
+.grad-indigo { background: linear-gradient(135deg, #4F46E5, #7C3AED); }
 
 /* ── Desktop / Tablet shell overrides (≥480px) ────────────────────────── */
 @media (min-width: 480px) {
