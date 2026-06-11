@@ -3,7 +3,7 @@ import { err } from '@/lib/response'
 import { supabaseAdmin } from '@/lib/supabase'
 
 const ADMIN_SECRET = process.env.ADMIN_SECRET
-const ROLE_RANK: Record<string, number> = { view: 0, comment: 1, admin: 2 }
+const ROLE_RANK: Record<string, number> = { view: 0, comment: 1, admin: 2, superadmin: 3 }
 
 /** Validates x-admin-key. Returns 401 NextResponse on failure, null on success. */
 export function requireAdmin(req: NextRequest): NextResponse | null {
@@ -19,7 +19,7 @@ export function requireAdmin(req: NextRequest): NextResponse | null {
  */
 export async function requireRole(
   req: NextRequest,
-  minRole: 'view' | 'comment' | 'admin',
+  minRole: 'view' | 'comment' | 'admin' | 'superadmin',
 ): Promise<NextResponse | null> {
   const keyDenied = requireAdmin(req)
   if (keyDenied) return keyDenied

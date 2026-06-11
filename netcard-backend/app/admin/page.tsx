@@ -49,7 +49,7 @@ type SessionsData = { sessions: SessionRow[]; stats: SessionStats }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const ROLES = ['view', 'comment', 'admin'] as const
+const ROLES = ['view', 'comment', 'admin', 'superadmin'] as const
 type Role = typeof ROLES[number]
 function canDo(userRole: string, min: Role) {
   return ROLES.indexOf(userRole as Role) >= ROLES.indexOf(min)
@@ -110,7 +110,7 @@ async function apiFetch<T>(path: string, sess: Session, opts?: RequestInit): Pro
 const STATUS_COLORS: Record<string, string> = {
   open: C.indigo, in_progress: C.amber, resolved: C.green, closed: C.t3,
   planned: C.amber, done: C.green, rejected: C.red, pending: C.indigo,
-  ok: C.green, view: C.t3, comment: C.amber, admin: C.indigo,
+  ok: C.green, view: C.t3, comment: C.amber, admin: C.indigo, superadmin: C.purple,
 }
 
 function Badge({ text }: { text: string }) {
@@ -571,12 +571,15 @@ function AppUsersSection({ sess }: { sess: Session }) {
 
 // ── Users Tab ─────────────────────────────────────────────────────────────────
 
-function UsersTab({ sess, users, onRefresh }: { sess: Session; users: AdminUser[]; onRefresh: () => void }) {
+function UsersTab({ sess, users, isSuperAdmin, onRefresh }: { sess: Session; users: AdminUser[]; isSuperAdmin: boolean; onRefresh: () => void }) {
   const [email, setEmail]   = useState('')
   const [role, setRole]     = useState<Role>('view')
   const [adding, setAdding] = useState(false)
   const [err, setErr]       = useState('')
   const [ok, setOk]         = useState('')
+
+  // Roles available in the add-user dropdown — superadmin can assign superadmin too
+  const addableRoles: Role[] = isSuperAdmin ? ['view', 'comment', 'admin', 'superadmin'] : ['view', 'comment', 'admin']
 
   const addUser = async () => {
     if (!email.includes('@')) { setErr('Enter a valid email'); return }
@@ -619,15 +622,20 @@ function UsersTab({ sess, users, onRefresh }: { sess: Session; users: AdminUser[
             <div style={{ fontSize: 11, fontWeight: 700, color: C.t2, marginBottom: 5, textTransform: 'uppercase' as const, letterSpacing: 0.4 }}>Access Level</div>
             <select value={role} onChange={e => setRole(e.target.value as Role)}
               style={{ background: C.surface, color: C.t1, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', fontSize: 13 }}>
-              {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+              {addableRoles.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
           <Btn onClick={addUser} disabled={adding || !email}>{adding ? 'Adding…' : 'Add User'}</Btn>
         </div>
         {err && <div style={{ color: C.red, fontSize: 12, marginTop: 10 }}>{err}</div>}
         {ok  && <div style={{ color: C.green, fontSize: 12, marginTop: 10 }}>✓ {ok}</div>}
-        <div style={{ marginTop: 12, display: 'flex', gap: 20, fontSize: 12, color: C.t3 }}>
-          {[['view','Read-only access to all panels'],['comment','Read + update support tickets'],['admin','Full access including user management']].map(([r, d]) => (
+        <div style={{ marginTop: 12, display: 'flex', gap: 20, fontSize: 12, color: C.t3, flexWrap: 'wrap' as const }}>
+          {[
+            ['view','Read-only access'],
+            ['comment','Read + update tickets'],
+            ['admin','Full access + user management'],
+            ...(isSuperAdmin ? [['superadmin','All permissions + remove admins']] : []),
+          ].map(([r, d]) => (
             <span key={r}><strong style={{ color: C.t2 }}>{r}</strong> — {d}</span>
           ))}
         </div>
@@ -636,37 +644,57 @@ function UsersTab({ sess, users, onRefresh }: { sess: Session; users: AdminUser[
       {/* Admin users table */}
       <Card style={{ overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' as const }}>
-          <thead><tr><TH>Email</TH><TH>Role</TH><TH>Added By</TH><TH>Added On</TH><TH> </TH></tr></thead>
+          <thead>
+            <tr>
+              <TH>Email</TH><TH>Role</TH><TH>Added By</TH><TH>Added On</TH>
+              {isSuperAdmin && <TH> </TH>}
+            </tr>
+          </thead>
           <tbody>
             {users.length === 0
-              ? <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center' as const, color: C.t3, fontSize: 13 }}>No users yet</td></tr>
-              : users.map(u => (
-                <tr key={u.id} style={{ background: u.email === sess.email ? C.sub : C.surface }}>
-                  <TD>
-                    <span style={{ fontWeight: 600 }}>{u.email}</span>
-                    {u.email === sess.email && <span style={{ marginLeft: 8, fontSize: 10, color: C.t3, background: C.sub, border: `1px solid ${C.border}`, borderRadius: 3, padding: '1px 5px' }}>you</span>}
-                  </TD>
-                  <TD>
-                    <select
-                      value={u.role}
-                      disabled={u.email === sess.email}
-                      onChange={e => changeRole(u.id, e.target.value)}
-                      style={{ background: C.surface, color: STATUS_COLORS[u.role] ?? C.t2, border: `1px solid ${C.border}`, borderRadius: 5, padding: '4px 8px', fontSize: 12, fontWeight: 700, cursor: u.email === sess.email ? 'default' : 'pointer' }}
-                    >
-                      {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                    </select>
-                  </TD>
-                  <TD><span style={{ color: C.t2 }}>{u.added_by ?? '—'}</span></TD>
-                  <TD>{fmtDate(u.created_at)}</TD>
-                  <TD>
-                    <button
-                      onClick={() => removeUser(u.id, u.email)}
-                      disabled={u.email === sess.email}
-                      style={{ background: 'none', border: 'none', color: u.email === sess.email ? C.t3 : C.red, cursor: u.email === sess.email ? 'default' : 'pointer', fontSize: 13, fontWeight: 600, padding: '3px 6px', borderRadius: 4 }}
-                    >Remove</button>
-                  </TD>
-                </tr>
-              ))
+              ? <tr><td colSpan={isSuperAdmin ? 5 : 4} style={{ padding: 24, textAlign: 'center' as const, color: C.t3, fontSize: 13 }}>No users yet</td></tr>
+              : users.map(u => {
+                  const isSelf      = u.email === sess.email
+                  const isTargetSA  = u.role === 'superadmin'
+                  // Can only edit role if: not yourself, and (you're superadmin OR target isn't superadmin)
+                  const canEditRole = !isSelf && (isSuperAdmin || !isTargetSA)
+                  // Only superadmin can remove; can't remove yourself
+                  const canRemove   = isSuperAdmin && !isSelf
+                  // Available roles in dropdown: superadmin can set any; admin can set up to admin
+                  const editRoles: Role[] = isSuperAdmin ? ['view','comment','admin','superadmin'] : ['view','comment','admin']
+
+                  return (
+                    <tr key={u.id} style={{ background: isSelf ? C.sub : C.surface }}>
+                      <TD>
+                        <span style={{ fontWeight: 600 }}>{u.email}</span>
+                        {isSelf && <span style={{ marginLeft: 8, fontSize: 10, color: C.t3, background: C.sub, border: `1px solid ${C.border}`, borderRadius: 3, padding: '1px 5px' }}>you</span>}
+                      </TD>
+                      <TD>
+                        {canEditRole
+                          ? <select
+                              value={u.role}
+                              onChange={e => changeRole(u.id, e.target.value)}
+                              style={{ background: C.surface, color: STATUS_COLORS[u.role] ?? C.t2, border: `1px solid ${C.border}`, borderRadius: 5, padding: '4px 8px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                            >
+                              {editRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                            </select>
+                          : <Badge text={u.role} />
+                        }
+                      </TD>
+                      <TD><span style={{ color: C.t2 }}>{u.added_by ?? '—'}</span></TD>
+                      <TD>{fmtDate(u.created_at)}</TD>
+                      {isSuperAdmin && (
+                        <TD>
+                          <button
+                            onClick={() => canRemove && removeUser(u.id, u.email)}
+                            disabled={!canRemove}
+                            style={{ background: 'none', border: 'none', color: canRemove ? C.red : C.t3, cursor: canRemove ? 'pointer' : 'default', fontSize: 13, fontWeight: 600, padding: '3px 6px', borderRadius: 4 }}
+                          >Remove</button>
+                        </TD>
+                      )}
+                    </tr>
+                  )
+                })
             }
           </tbody>
         </table>
@@ -958,8 +986,9 @@ export default function AdminPage() {
   }
 
   // ── Dashboard ──────────────────────────────────────────────────────────────
-  const isAdmin = canDo(sess.role, 'admin')
-  const canEdit = canDo(sess.role, 'comment')
+  const isAdmin      = canDo(sess.role, 'admin')
+  const isSuperAdmin = canDo(sess.role, 'superadmin')
+  const canEdit      = canDo(sess.role, 'comment')
 
   const TABS: { id: Tab; label: string; badge?: number }[] = [
     { id: 'stats',       label: 'Stats' },
@@ -1056,7 +1085,7 @@ export default function AdminPage() {
           </div>
         )}
         {tab === 'users' && isAdmin && (
-          <UsersTab sess={sess} users={adminUsers} onRefresh={() => loadAdminUsers(sess)} />
+          <UsersTab sess={sess} users={adminUsers} isSuperAdmin={isSuperAdmin} onRefresh={() => loadAdminUsers(sess)} />
         )}
       </div>
     </div>

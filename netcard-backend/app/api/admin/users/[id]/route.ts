@@ -12,7 +12,25 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
     const { id } = await params
     const { role } = await req.json()
-    if (!['view', 'comment', 'admin'].includes(role)) return err('Invalid role', 400)
+    if (!['view', 'comment', 'admin', 'superadmin'].includes(role)) return err('Invalid role', 400)
+
+    // Only superadmin can assign or remove the superadmin role
+    if (role === 'superadmin') {
+      const superDenied = await requireRole(req, 'superadmin')
+      if (superDenied) return err('Only superadmin can assign superadmin role', 403)
+    }
+
+    // Only superadmin can modify a superadmin user
+    const { data: target } = await supabaseAdmin
+      .from('admin_users')
+      .select('role')
+      .eq('id', id)
+      .single()
+
+    if (target?.role === 'superadmin') {
+      const superDenied = await requireRole(req, 'superadmin')
+      if (superDenied) return err('Only superadmin can modify another superadmin', 403)
+    }
 
     const { data, error } = await supabaseAdmin
       .from('admin_users')
@@ -28,9 +46,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   }
 }
 
-/** DELETE /api/admin/users/[id] — remove an admin user */
+/** DELETE /api/admin/users/[id] — remove an admin user (superadmin only) */
 export async function DELETE(req: NextRequest, { params }: Ctx) {
-  const denied = await requireRole(req, 'admin')
+  const denied = await requireRole(req, 'superadmin')
   if (denied) return denied
   try {
     const { id } = await params

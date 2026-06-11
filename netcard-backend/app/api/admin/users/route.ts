@@ -30,7 +30,13 @@ export async function POST(req: NextRequest) {
     const role  = body.role as string
 
     if (!email) return err('email required', 400)
-    if (!['view', 'comment', 'admin'].includes(role)) return err('role must be view | comment | admin', 400)
+    if (!['view', 'comment', 'admin', 'superadmin'].includes(role)) return err('role must be view | comment | admin | superadmin', 400)
+
+    // Only superadmin can create another superadmin
+    if (role === 'superadmin') {
+      const superDenied = await requireRole(req, 'superadmin')
+      if (superDenied) return err('Only superadmin can add another superadmin', 403)
+    }
 
     const addedBy = (req.headers.get('x-admin-email') ?? '').toLowerCase().trim()
 
