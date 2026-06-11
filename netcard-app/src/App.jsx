@@ -395,29 +395,40 @@ export default function App() {
    */
   useEffect(() => {
     if (!authed) return
-    if (localStorage.getItem('netcard_onboarding_complete')) return
 
+    // Already onboarded on this device — go straight to home immediately
+    if (localStorage.getItem('netcard_onboarding_complete')) {
+      nav.navigate('home')
+      return
+    }
+
+    // Check for a cached profile — if they have a name they've been here before
+    const cached = (() => { try { return JSON.parse(localStorage.getItem('netcard_my_profile') || '{}') } catch { return {} } })()
+    if (cached.name) {
+      localStorage.setItem('netcard_onboarding_complete', '1')
+      nav.navigate('home')
+      return
+    }
+
+    // No local data — fetch from API to distinguish new vs returning user
     fetch(`${API}/api/profile`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(d => {
         const profile = d?.data || {}
         if (profile.name) {
           // ── Returning / existing user ──────────────────────────────────────
-          // Persist profile to localStorage so UI can render without extra API calls
-          const cached = (() => { try { return JSON.parse(localStorage.getItem('netcard_my_profile') || '{}') } catch { return {} } })()
           localStorage.setItem('netcard_my_profile', JSON.stringify({
-            name:     profile.name     || cached.name     || '',
-            title:    profile.role     || cached.title    || '',
-            company:  profile.company  || cached.company  || '',
-            email:    profile.email    || cached.email    || '',
-            phone:    profile.phone    || cached.phone    || '',
-            linkedin: profile.linkedin_url || cached.linkedin || '',
-            web:      profile.website  || cached.web      || '',
-            seeking:  profile.seeking  || cached.seeking  || '',
-            offering: profile.offering || cached.offering || '',
+            name:     profile.name     || '',
+            title:    profile.role     || '',
+            company:  profile.company  || '',
+            email:    profile.email    || '',
+            phone:    profile.phone    || '',
+            linkedin: profile.linkedin_url || '',
+            web:      profile.website  || '',
+            seeking:  profile.seeking  || '',
+            offering: profile.offering || '',
           }))
 
-          // Figure out which profile fields are still missing
           const missing = []
           if (!profile.role)         missing.push('title')
           if (!profile.company)      missing.push('company')
@@ -427,22 +438,19 @@ export default function App() {
           if (!profile.offering)     missing.push('offering')
           setIncompleteFields(missing)
 
-          // Mark onboarding done so we never re-check on this device
           localStorage.setItem('netcard_onboarding_complete', '1')
-          // Navigate to their card rather than onboarding
-          nav.navigate('mycard')
+          nav.navigate('home')
         } else {
           // ── Brand-new user ─────────────────────────────────────────────────
           nav.navigate('onboarding')
         }
       })
       .catch(() => {
-        // Network error: if we have no cached profile at all, send to onboarding
-        // so a new user isn't stuck; if there's a cached profile they're returning.
-        const cached = (() => { try { return JSON.parse(localStorage.getItem('netcard_my_profile') || '{}') } catch { return {} } })()
-        if (cached.name) {
+        // Network error — if there's any cached profile send to home, else onboarding
+        const fallback = (() => { try { return JSON.parse(localStorage.getItem('netcard_my_profile') || '{}') } catch { return {} } })()
+        if (fallback.name) {
           localStorage.setItem('netcard_onboarding_complete', '1')
-          nav.navigate('mycard')
+          nav.navigate('home')
         } else {
           nav.navigate('onboarding')
         }
