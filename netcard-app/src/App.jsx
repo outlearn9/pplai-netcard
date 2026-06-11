@@ -32,6 +32,8 @@ import { Users, QrCode, CreditCard, Calendar, Sparkles, MessageSquare, X, Chevro
 import AllScreensPreview from './screens/AllScreensPreview'
 import AuthScreen        from './screens/AuthScreen'
 import { useNavigation } from './hooks/useNavigation'
+import { useBreakpoint }  from './hooks/useBreakpoint'
+import DesktopShell       from './components/DesktopShell'
 import HomeScreen        from './screens/HomeScreen'
 import ScanScreen        from './screens/ScanScreen'
 import MyCardScreen      from './screens/MyCardScreen'
@@ -345,6 +347,9 @@ const SAMPLE_CRM_LEADS = [
 
 export default function App() {
   const nav = useNavigation()
+  const bp = useBreakpoint()
+  const isWide = bp === 'desktop' || bp === 'tablet'
+  const isTablet = bp === 'tablet'
   const [authed, setAuthed] = useState(() => !!localStorage.getItem('netcard_authed'))
   const [showProfile, setShowProfile] = useState(false)
   const [shellEl, setShellEl] = useState(null)
@@ -505,6 +510,27 @@ export default function App() {
     )
   }
 
+  // ── Desktop / Tablet layout ──────────────────────────────────────────────
+  if (isWide) {
+    return (
+      <DesktopShell
+        activeScreen={nav.screen}
+        activeTab={nav.activeTab}
+        navigate={nav.navigate}
+        onSignOut={() => { localStorage.removeItem('netcard_authed'); setAuthed(false) }}
+        unreadCount={unreadCount}
+        isTablet={isTablet}
+      >
+        <div key={nav.screen} className="screen-enter" style={{ position: 'absolute', inset: 0 }}>
+          <ErrorBoundary>
+            {renderScreen(nav)}
+          </ErrorBoundary>
+        </div>
+      </DesktopShell>
+    )
+  }
+
+  // ── Mobile layout (phone shell) ───────────────────────────────────────────
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: 20 }}>
       <div style={{
@@ -566,7 +592,6 @@ export default function App() {
                         cursor: 'pointer', paddingBottom: 6, position: 'relative',
                       }}
                     >
-                      {/* Elevated circle */}
                       <div style={{
                         position: 'absolute', top: -28,
                         width: 58, height: 58, borderRadius: '50%',

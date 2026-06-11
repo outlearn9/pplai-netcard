@@ -469,3 +469,24 @@ textarea.input-field {
 .grad-green { background: linear-gradient(135deg, #32D583, #059669); }
 .grad-amber { background: linear-gradient(135deg, #FFB547, #E85A4F); }
 .grad-blue { background: linear-gradient(135deg, #6366F1, #32D583); }
+
+/* ── Desktop / Tablet shell overrides (≥480px) ────────────────────────── */
+@media (min-width: 480px) {
+  /* Screens render in a full content area — no phone chrome */
+  .status-bar { display: none; }
+
+  /* Full-height screens inside the desktop shell content area */
+  .screen {
+    border-radius: 0;
+  }
+
+  /* Content area gets less bottom padding (no tab bar) */
+  .content {
+    padding-bottom: 32px;
+  }
+
+  /* Remove the mobile-only back-button top offset */
+  .screen-header {
+    padding-top: 0;
+  }
+}
