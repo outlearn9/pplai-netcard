@@ -120,8 +120,8 @@ function InputField({ icon, label, value, onChange, placeholder, type = 'text', 
 }
 
 export default function AuthScreen({ onAuth }) {
-  // phases: 'checking' | 'returning' | 'landing' | 'signup' | 'signupOtp' | 'phone' | 'otp'
-  const [phase, setPhase]       = useState('checking')
+  // phases: 'returning' | 'landing' | 'signup' | 'signupOtp' | 'phone' | 'otp'
+  const [phase, setPhase]       = useState('landing')
   const [country, setCountry]   = useState(COUNTRIES[0])
   const [showCountryPicker, setShowCountryPicker] = useState(false)
   const [phone, setPhone]       = useState('')
@@ -141,48 +141,8 @@ export default function AuthScreen({ onAuth }) {
   })()
 
   useEffect(() => {
-    // ?oauth=1 = Google/LinkedIn OAuth redirect; netcard_auth_pending = email OTP redirect
-    const fromOAuth = new URLSearchParams(window.location.search).has('oauth')
-      || !!localStorage.getItem('netcard_auth_pending')
-    if (fromOAuth) {
-      window.history.replaceState({}, '', window.location.pathname)
-      localStorage.removeItem('netcard_auth_pending')
-    }
-
-    // After OAuth/OTP redirect Clerk needs a moment to set the session cookie.
-    // Retry a few times before giving up and showing sign-in.
-    const maxAttempts = fromOAuth ? 5 : 2
-    const retryDelay  = 1500
-    let attempt = 0
-
-    const tryFetch = () => {
-      attempt++
-      fetch(`${API}/api/profile`, { credentials: 'include' })
-        .then(r => {
-          if (r.ok) {
-            r.json().then(d => {
-              if (d?.data?.name) {
-                localStorage.setItem('netcard_last_user', JSON.stringify({ name: d.data.name, email: d.data.email }))
-              }
-              localStorage.setItem('netcard_authed', '1')
-              onAuth?.()
-            })
-          } else if (attempt < maxAttempts) {
-            setTimeout(tryFetch, retryDelay)
-          } else {
-            setPhase(lastUser ? 'returning' : 'landing')
-          }
-        })
-        .catch(() => {
-          if (attempt < maxAttempts) {
-            setTimeout(tryFetch, retryDelay)
-          } else {
-            setPhase(lastUser ? 'returning' : 'landing')
-          }
-        })
-    }
-
-    tryFetch()
+    // Start on the right sub-screen: returning user (has cached name) or fresh landing
+    setPhase(lastUser ? 'returning' : 'landing')
   }, [])
 
   useEffect(() => {
@@ -302,14 +262,6 @@ export default function AuthScreen({ onAuth }) {
           </svg>
         </div>
       </div>
-
-      {/* ── CHECKING SESSION ─── */}
-      {phase === 'checking' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
-          <div style={{ width: 38, height: 38, borderRadius: '50%', border: '3px solid var(--border)', borderTopColor: 'var(--indigo)', animation: 'spin 0.7s linear infinite' }} />
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>Checking session…</p>
-        </div>
-      )}
 
       {/* ── RETURNING USER ─── */}
       {phase === 'returning' && (

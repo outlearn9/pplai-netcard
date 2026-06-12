@@ -350,7 +350,8 @@ export default function App() {
   const bp = useBreakpoint()
   const isWide = bp === 'desktop' || bp === 'tablet'
   const isTablet = bp === 'tablet'
-  const [authed, setAuthed] = useState(() => !!localStorage.getItem('netcard_authed'))
+  const [authed, setAuthed] = useState(false)
+  const [sessionChecked, setSessionChecked] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [shellEl, setShellEl] = useState(null)
   const [unreadCount, setUnreadCount] = useState(0)
@@ -362,6 +363,55 @@ export default function App() {
     mycard: (nav) => <MyCardScreen navigate={nav.navigate} onMenuOpen={() => setShowProfile(true)} incompleteFields={incompleteFields} onFieldsFilled={() => setIncompleteFields([])} />,
   }
   const renderScreen = screenMapWithCard[nav.screen] ?? screenMapWithCard.home
+
+  // On every page load, probe the session. Retry patiently after OAuth/OTP redirects.
+  useEffect(() => {
+    const fromAuth = new URLSearchParams(window.location.search).has('oauth')
+      || !!localStorage.getItem('netcard_auth_pending')
+    if (fromAuth) {
+      window.history.replaceState({}, '', window.location.pathname)
+      localStorage.removeItem('netcard_auth_pending')
+    }
+
+    const maxAttempts = fromAuth ? 6 : 1
+    const retryDelay  = 1500
+    let attempt = 0
+
+    const probe = () => {
+      attempt++
+      fetch(`${API}/api/profile`, { credentials: 'include' })
+        .then(r => {
+          if (r.ok) {
+            r.json().then(d => {
+              if (d?.data?.name) {
+                localStorage.setItem('netcard_last_user', JSON.stringify({ name: d.data.name, email: d.data.email }))
+              }
+              localStorage.setItem('netcard_authed', '1')
+              setAuthed(true)
+              setSessionChecked(true)
+            })
+          } else if (attempt < maxAttempts) {
+            setTimeout(probe, retryDelay)
+          } else {
+            localStorage.removeItem('netcard_authed')
+            setAuthed(false)
+            setSessionChecked(true)
+          }
+        })
+        .catch(() => {
+          if (attempt < maxAttempts) {
+            setTimeout(probe, retryDelay)
+          } else {
+            // Network error — trust localStorage if it was set
+            const trusted = !!localStorage.getItem('netcard_authed')
+            setAuthed(trusted)
+            setSessionChecked(true)
+          }
+        })
+    }
+
+    probe()
+  }, [])
 
   // Poll unread notifications count every 60s
   const fetchUnread = useCallback(() => {
@@ -539,6 +589,15 @@ export default function App() {
   // Preview mode: http://localhost:5173/?preview
   if (new URLSearchParams(window.location.search).has('preview')) {
     return <AllScreensPreview />
+  }
+
+  // Still checking session on load — show a bare spinner (no phone shell flash)
+  if (!sessionChecked) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <div style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid #E2E0DC', borderTopColor: '#6366F1', animation: 'spin 0.7s linear infinite' }} />
+      </div>
+    )
   }
 
   if (!authed) {
