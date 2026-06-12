@@ -85,11 +85,17 @@ export async function POST(req: NextRequest) {
       userId = created.id
     }
 
-    // Issue a sign-in token (valid 5 min)
+    const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL ?? 'https://app.pplai.app'
+
+    // Issue a sign-in token (valid 5 min); redirect_url sends the user back to the SPA
     const tokenRes  = await fetch('https://api.clerk.com/v1/sign_in_tokens', {
       method: 'POST',
       headers: clerkHeaders,
-      body: JSON.stringify({ user_id: userId, expires_in_seconds: 300 }),
+      body: JSON.stringify({
+        user_id: userId,
+        expires_in_seconds: 300,
+        redirect_url: `${frontendUrl}?oauth=1`,
+      }),
     })
     const tokenData = await tokenRes.json() as { url?: string; errors?: unknown }
 
