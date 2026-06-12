@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import { auth } from '@clerk/nextjs/server'
-import { redirect } from 'next/navigation'
 import { supabaseAdmin } from '@/lib/supabase'
 import ContactSection from './_components/ContactSection'
 import JobsSection from './_components/JobsSection'
@@ -22,8 +21,6 @@ export const metadata: Metadata = {
 
 export default async function LandingPage() {
   const { userId } = await auth()
-
-  if (userId) redirect(FRONTEND_URL)
 
   let profile: Record<string, string> | null = null
   if (userId) {
