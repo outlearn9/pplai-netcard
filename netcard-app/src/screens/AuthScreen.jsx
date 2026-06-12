@@ -141,37 +141,48 @@ export default function AuthScreen({ onAuth }) {
   })()
 
   useEffect(() => {
-    // ?oauth=1 means we just came back from Google/LinkedIn OAuth via /app-redirect
+    // ?oauth=1 = Google/LinkedIn OAuth redirect; netcard_auth_pending = email OTP redirect
     const fromOAuth = new URLSearchParams(window.location.search).has('oauth')
+      || !!localStorage.getItem('netcard_auth_pending')
     if (fromOAuth) {
-      // Clean the URL so refreshing doesn't re-trigger this
       window.history.replaceState({}, '', window.location.pathname)
+      localStorage.removeItem('netcard_auth_pending')
     }
 
-    // Longer timeout normally; shorter after OAuth since session is definitely fresh
-    const timeoutMs = fromOAuth ? 8000 : 3000
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    // After OAuth/OTP redirect Clerk needs a moment to set the session cookie.
+    // Retry a few times before giving up and showing sign-in.
+    const maxAttempts = fromOAuth ? 5 : 2
+    const retryDelay  = 1500
+    let attempt = 0
 
-    fetch(`${API}/api/profile`, { credentials: 'include', signal: controller.signal })
-      .then(r => {
-        clearTimeout(timer)
-        if (r.ok) {
-          r.json().then(d => {
-            if (d?.data?.name) {
-              localStorage.setItem('netcard_last_user', JSON.stringify({ name: d.data.name, email: d.data.email }))
-            }
-            localStorage.setItem('netcard_authed', '1')
-            onAuth?.()
-          })
-        } else {
-          setPhase(lastUser ? 'returning' : 'landing')
-        }
-      })
-      .catch(() => {
-        clearTimeout(timer)
-        setPhase(lastUser ? 'returning' : 'landing')
-      })
+    const tryFetch = () => {
+      attempt++
+      fetch(`${API}/api/profile`, { credentials: 'include' })
+        .then(r => {
+          if (r.ok) {
+            r.json().then(d => {
+              if (d?.data?.name) {
+                localStorage.setItem('netcard_last_user', JSON.stringify({ name: d.data.name, email: d.data.email }))
+              }
+              localStorage.setItem('netcard_authed', '1')
+              onAuth?.()
+            })
+          } else if (attempt < maxAttempts) {
+            setTimeout(tryFetch, retryDelay)
+          } else {
+            setPhase(lastUser ? 'returning' : 'landing')
+          }
+        })
+        .catch(() => {
+          if (attempt < maxAttempts) {
+            setTimeout(tryFetch, retryDelay)
+          } else {
+            setPhase(lastUser ? 'returning' : 'landing')
+          }
+        })
+    }
+
+    tryFetch()
   }, [])
 
   useEffect(() => {
@@ -240,10 +251,9 @@ export default function AuthScreen({ onAuth }) {
         return
       }
 
-      // Pre-set auth flag before redirecting — the OTP was already verified so
-      // the session will be valid when Clerk redirects back to the app.
-      // Without this, the app reloads with authed=false and shows the landing screen.
+      // Signal to AuthScreen that it should retry the session check patiently
       localStorage.setItem('netcard_authed', '1')
+      localStorage.setItem('netcard_auth_pending', '1')
       // Redirect to Clerk sign-in token URL — sets session cookie then comes back to app
       window.location.href = d.data.token_url
     } catch {
