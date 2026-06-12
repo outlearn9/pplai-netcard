@@ -141,8 +141,17 @@ export default function AuthScreen({ onAuth }) {
   })()
 
   useEffect(() => {
+    // ?oauth=1 means we just came back from Google/LinkedIn OAuth via /app-redirect
+    const fromOAuth = new URLSearchParams(window.location.search).has('oauth')
+    if (fromOAuth) {
+      // Clean the URL so refreshing doesn't re-trigger this
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+
+    // Longer timeout normally; shorter after OAuth since session is definitely fresh
+    const timeoutMs = fromOAuth ? 8000 : 3000
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 3000)
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
 
     fetch(`${API}/api/profile`, { credentials: 'include', signal: controller.signal })
       .then(r => {
@@ -152,6 +161,7 @@ export default function AuthScreen({ onAuth }) {
             if (d?.data?.name) {
               localStorage.setItem('netcard_last_user', JSON.stringify({ name: d.data.name, email: d.data.email }))
             }
+            localStorage.setItem('netcard_authed', '1')
             onAuth?.()
           })
         } else {

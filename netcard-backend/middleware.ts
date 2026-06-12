@@ -5,8 +5,13 @@ import { clerkMiddleware } from '@clerk/nextjs/server'
 export default function middleware(request: NextRequest, event: NextFetchEvent) {
   const host = request.headers.get('host') ?? ''
 
-  // api.pplai.app — only API routes allowed; redirect everything else to pplai.app
-  if (host.startsWith('api.') && !request.nextUrl.pathname.startsWith('/api')) {
+  // api.pplai.app — allow /api/* and Clerk auth paths; redirect everything else
+  const path = request.nextUrl.pathname
+  const isClerkPath = path === '/' ? false :
+    path.startsWith('/sign-in') || path.startsWith('/sign-up') ||
+    path.startsWith('/app-redirect') || path.startsWith('/sso-callback') ||
+    path.startsWith('/__clerk') || path.startsWith('/factor-')
+  if (host.startsWith('api.') && !path.startsWith('/api') && !isClerkPath) {
     return NextResponse.redirect('https://pplai.app', { status: 301 })
   }
 
