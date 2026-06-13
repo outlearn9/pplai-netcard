@@ -120,7 +120,7 @@ function InputField({ icon, label, value, onChange, placeholder, type = 'text', 
 }
 
 export default function AuthScreen({ onAuth }) {
-  // phases: 'returning' | 'landing' | 'signup' | 'signupOtp' | 'phone' | 'otp'
+  // phases: 'returning' | 'landing' | 'signup' | 'signupOtp' | 'signin' | 'signinOtp'
   const [phase, setPhase]       = useState('landing')
   const [country, setCountry]   = useState(COUNTRIES[0])
   const [showCountryPicker, setShowCountryPicker] = useState(false)
@@ -136,6 +136,10 @@ export default function AuthScreen({ onAuth }) {
   const [signupCode,  setSignupCode]  = useState('')
   const [signupError, setSignupError] = useState('')
 
+  const [signinEmail, setSigninEmail] = useState('')
+  const [signinCode,  setSigninCode]  = useState('')
+  const [signinError, setSigninError] = useState('')
+
   const lastUser = (() => {
     try { return JSON.parse(localStorage.getItem('netcard_last_user') || 'null') } catch { return null }
   })()
@@ -146,7 +150,7 @@ export default function AuthScreen({ onAuth }) {
   }, [])
 
   useEffect(() => {
-    if (phase !== 'otp' && phase !== 'signupOtp') return
+    if (phase !== 'otp' && phase !== 'signupOtp' && phase !== 'signinOtp') return
     setResendTimer(30)
     const id = setInterval(() => setResendTimer(t => t > 0 ? t - 1 : 0), 1000)
     return () => clearInterval(id)
@@ -228,17 +232,41 @@ export default function AuthScreen({ onAuth }) {
     await sendSignupOtp()
   }
 
-  const sendOtp = () => {
-    if (phone.length < 6) return
-    window.location.href = `${AUTH_URL}/sign-in`
+  const sendSigninOtp = async () => {
+    if (!signinEmail.trim()) return
+    setLoading(true)
+    setSigninError('')
+    try {
+      const r = await fetch(`${API}/api/auth/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: signinEmail.trim() }),
+      })
+      const d = await r.json()
+      if (!r.ok) { setSigninError(d?.error || 'Could not send code. Please try again.'); setLoading(false); return }
+      setSigninCode('')
+      setPhase('signinOtp')
+    } catch { setSigninError('Network error. Please check your connection.') }
+    setLoading(false)
   }
 
-  const verifyOtp = () => {
-    if (otp.length < 6) return
-    window.location.href = `${AUTH_URL}/sign-in`
+  const verifySigninOtp = async () => {
+    if (signinCode.length < 6) return
+    setLoading(true)
+    setSigninError('')
+    try {
+      const r = await fetch(`${API}/api/auth/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: signinEmail.trim(), code: signinCode }),
+      })
+      const d = await r.json()
+      if (!r.ok) { setSigninError(d?.error || 'Invalid code. Please try again.'); setLoading(false); return }
+      localStorage.setItem('netcard_auth_pending', '1')
+      window.location.href = d.data.token_url
+    } catch { setSigninError('Network error. Please try again.') }
+    setLoading(false)
   }
-
-  const goToSignIn = () => { window.location.href = `${AUTH_URL}/sign-in` }
 
   const initials = lastUser?.name
     ? lastUser.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
@@ -301,7 +329,7 @@ export default function AuthScreen({ onAuth }) {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <button
-              onClick={goToSignIn}
+              onClick={() => { if (lastUser?.email) setSigninEmail(lastUser.email); setPhase('signin') }}
               style={{
                 width: '100%', padding: '15px 20px', borderRadius: 14, border: 'none',
                 background: 'linear-gradient(135deg, var(--indigo), var(--indigo-dark))',
@@ -365,7 +393,7 @@ export default function AuthScreen({ onAuth }) {
             </div>
 
             <button
-              onClick={goToSignIn}
+              onClick={() => setPhase('signin')}
               style={{
                 width: '100%', padding: '13px 20px', borderRadius: 14,
                 border: '1.5px solid var(--border-strong)', background: 'var(--card)',
@@ -373,36 +401,12 @@ export default function AuthScreen({ onAuth }) {
                 cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
               }}
             >
-              <GoogleLogo /> Continue with Google
-            </button>
-
-            <button
-              onClick={goToSignIn}
-              style={{
-                width: '100%', padding: '13px 20px', borderRadius: 14,
-                border: '1.5px solid var(--border-strong)', background: 'var(--card)',
-                color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500,
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-              }}
-            >
-              <LinkedInLogo /> Continue with LinkedIn
-            </button>
-
-            <button
-              onClick={goToSignIn}
-              style={{
-                width: '100%', padding: '13px 20px', borderRadius: 14,
-                border: '1.5px solid var(--border)', background: 'transparent',
-                color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500,
-                cursor: 'pointer',
-              }}
-            >
-              Already have an account? Sign in
+              <Mail size={16} /> Sign in with email
             </button>
 
             <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
               By continuing you agree to our{' '}
-              <span style={{ color: 'var(--indigo)', cursor: 'pointer' }} onClick={() => window.open(`${AUTH_URL}/legal`, '_blank')}>Terms & Privacy</span>
+              <span style={{ color: 'var(--indigo)', cursor: 'pointer' }} onClick={() => window.open(`${AUTH_URL}/terms`, '_blank')}>Terms & Privacy</span>
             </p>
           </div>
         </div>
@@ -573,6 +577,72 @@ export default function AuthScreen({ onAuth }) {
                   <RotateCcw size={13} /> Resend code
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── SIGN IN (email) ─── */}
+      {phase === 'signin' && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '0 28px 36px' }}>
+          <button onClick={() => { setSigninError(''); setPhase('landing') }} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)', fontSize: 13, padding: '12px 0', flexShrink: 0 }}>
+            <ArrowLeft size={15} /> Back
+          </button>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: -0.6, marginBottom: 6 }}>Welcome back</div>
+            <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 28, lineHeight: 1.5 }}>Enter your email and we'll send a sign-in code.</div>
+            <InputField icon={<Mail size={15} />} label="Email" value={signinEmail} onChange={setSigninEmail} placeholder="you@example.com" type="email" autoFocus />
+            {signinError && (
+              <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10 }}>
+                <p style={{ fontSize: 13, color: '#ef4444', margin: 0, fontFamily: 'var(--font-sans)' }}>{signinError}</p>
+              </div>
+            )}
+            <button
+              onClick={sendSigninOtp}
+              disabled={!signinEmail.trim() || loading}
+              style={{ width: '100%', padding: '15px', borderRadius: 14, border: 'none', marginTop: 24, background: signinEmail.trim() ? 'linear-gradient(135deg, var(--indigo), var(--indigo-dark))' : 'var(--border)', color: signinEmail.trim() ? '#fff' : 'var(--text-muted)', fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 600, cursor: signinEmail.trim() ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: signinEmail.trim() ? '0 6px 20px rgba(99,102,241,0.3)' : 'none' }}
+            >
+              {loading ? 'Sending…' : <>Send code <ArrowRight size={16} /></>}
+            </button>
+            <button onClick={() => setPhase('signup')} style={{ marginTop: 14, background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+              New here? Create a free card →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── SIGN IN OTP ─── */}
+      {phase === 'signinOtp' && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '0 28px 36px' }}>
+          <button onClick={() => { setSigninCode(''); setSigninError(''); setPhase('signin') }} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)', fontSize: 13, padding: '12px 0' }}>
+            <ArrowLeft size={15} /> Back
+          </button>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div style={{ width: 60, height: 60, borderRadius: 18, marginBottom: 20, background: 'linear-gradient(135deg, var(--indigo), #7C3AED)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(99,102,241,0.3)' }}>
+              <Mail size={26} color="#fff" />
+            </div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: -0.6, marginBottom: 8 }}>Check your email</div>
+            <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 32, lineHeight: 1.5 }}>
+              Code sent to <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{signinEmail}</span>
+            </div>
+            <OTPInput value={signinCode} onChange={setSigninCode} />
+            {signinError && (
+              <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10 }}>
+                <p style={{ fontSize: 13, color: '#ef4444', margin: 0, fontFamily: 'var(--font-sans)' }}>{signinError}</p>
+              </div>
+            )}
+            <button
+              onClick={verifySigninOtp}
+              disabled={signinCode.length < 6 || loading}
+              style={{ width: '100%', padding: '15px', borderRadius: 14, border: 'none', marginTop: 24, background: signinCode.length === 6 ? 'linear-gradient(135deg, var(--indigo), var(--indigo-dark))' : 'var(--border)', color: signinCode.length === 6 ? '#fff' : 'var(--text-muted)', fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 600, cursor: signinCode.length === 6 ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: signinCode.length === 6 ? '0 6px 20px rgba(99,102,241,0.3)' : 'none' }}
+            >
+              {loading ? 'Verifying…' : <>Sign in <ArrowRight size={16} /></>}
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 20 }}>
+              {resendTimer > 0
+                ? <span style={{ fontSize: 13, color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>Resend in {resendTimer}s</span>
+                : <button onClick={() => { setSigninCode(''); sendSigninOtp() }} style={{ display: 'flex', alignItems: 'center', gap: 5, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--indigo)', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-sans)' }}><RotateCcw size={13} /> Resend code</button>
+              }
             </div>
           </div>
         </div>

@@ -9,7 +9,7 @@ const redis  = Redis.fromEnv()
 
 const schema = z.object({
   email: z.string().email(),
-  name:  z.string().min(1).max(100),
+  name:  z.string().max(100).optional(),   // optional for returning users signing in
   phone: z.string().optional(),
 })
 
@@ -23,8 +23,24 @@ export async function POST(req: NextRequest) {
     const parsed = schema.safeParse(body)
     if (!parsed.success) return err('Invalid request')
 
-    const { email, name, phone } = parsed.data
+    const { email, phone } = parsed.data
+    let { name } = parsed.data
     const normalEmail = email.toLowerCase().trim()
+
+    // For sign-in (no name provided), look up the existing Clerk user's name
+    if (!name) {
+      try {
+        const res = await fetch(
+          `https://api.clerk.com/v1/users?email_address=${encodeURIComponent(normalEmail)}`,
+          { headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` } },
+        )
+        const users = await res.json() as Array<{ first_name?: string; last_name?: string }>
+        if (Array.isArray(users) && users.length > 0) {
+          name = [users[0].first_name, users[0].last_name].filter(Boolean).join(' ') || 'there'
+        }
+      } catch {}
+      if (!name) name = 'there'
+    }
 
     // Rate-limit: 3 sends per email per 10 min
     const rlKey = `otp:rl:${normalEmail}`
