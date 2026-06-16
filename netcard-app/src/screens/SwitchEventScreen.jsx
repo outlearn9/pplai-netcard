@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/apiFetch'
 import { useState, useEffect } from 'react'
 import { ArrowLeft, Calendar, MapPin, Info, Loader } from 'lucide-react'
 
@@ -25,7 +26,7 @@ export default function SwitchEventScreen({ navigate }) {
   const [error, setError]       = useState(null)
 
   useEffect(() => {
-    fetch(`${API}/api/events`, { credentials: 'include' })
+    apiFetch(`/api/events`, { credentials: 'include' })
       .then(r => r.json())
       .then(data => {
         const list = data.data ?? data ?? []
@@ -52,7 +53,7 @@ export default function SwitchEventScreen({ navigate }) {
 
     setActivating(ev.id)
     try {
-      await fetch(`${API}/api/events/${ev.id}/activate`, {
+      await apiFetch(`/api/events/${ev.id}/activate`, {
         method: 'POST',
         credentials: 'include',
       })

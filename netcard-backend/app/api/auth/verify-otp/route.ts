@@ -1,7 +1,8 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { ok, err } from '@/lib/response'
 import { Redis } from '@upstash/redis'
+import { SignJWT } from 'jose'
 
 const redis = Redis.fromEnv()
 
@@ -11,6 +12,12 @@ const schema = z.object({
 })
 
 type OtpRecord = { code: string; name: string; phone: string; attempts: number; expiresAt: number }
+
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.JWT_SECRET
+  if (!secret) throw new Error('JWT_SECRET not set')
+  return new TextEncoder().encode(secret)
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -54,7 +61,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Find or create Clerk user
-    const searchRes  = await fetch(
+    const searchRes = await fetch(
       `https://api.clerk.com/v1/users?email_address=${encodeURIComponent(normalEmail)}`,
       { headers: clerkHeaders },
     )
@@ -66,13 +73,13 @@ export async function POST(req: NextRequest) {
       userId = users[0].id
     } else {
       const nameParts = name.trim().split(' ')
-      const createRes  = await fetch('https://api.clerk.com/v1/users', {
+      const createRes = await fetch('https://api.clerk.com/v1/users', {
         method: 'POST',
         headers: clerkHeaders,
         body: JSON.stringify({
-          email_address:            [normalEmail],
-          first_name:               nameParts[0] ?? '',
-          last_name:                nameParts.slice(1).join(' ') || undefined,
+          email_address:             [normalEmail],
+          first_name:                nameParts[0] ?? '',
+          last_name:                 nameParts.slice(1).join(' ') || undefined,
           skip_password_requirement: true,
           skip_password_checks:      true,
         }),
@@ -85,26 +92,16 @@ export async function POST(req: NextRequest) {
       userId = created.id
     }
 
-    const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL ?? 'https://app.pplai.app'
+    // Issue a signed JWT (30 days) that the backend accepts as auth
+    // Include name so fetchOrCreateProfile can generate a username on first login
+    const secret = getJwtSecret()
+    const token = await new SignJWT({ sub: userId, email: normalEmail, name })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('30d')
+      .sign(secret)
 
-    // Issue a sign-in token (valid 5 min); redirect_url sends the user back to the SPA
-    const tokenRes  = await fetch('https://api.clerk.com/v1/sign_in_tokens', {
-      method: 'POST',
-      headers: clerkHeaders,
-      body: JSON.stringify({
-        user_id: userId,
-        expires_in_seconds: 300,
-        redirect_url: `${frontendUrl}?oauth=1`,
-      }),
-    })
-    const tokenData = await tokenRes.json() as { url?: string; errors?: unknown }
-
-    if (!tokenRes.ok || !tokenData.url) {
-      console.error('[verify-otp] sign-in token failed', tokenData)
-      return err('Authentication failed. Please try again.', 500)
-    }
-
-    return ok({ token_url: tokenData.url, name, phone })
+    return ok({ token, name, phone })
   } catch (e) {
     console.error('[verify-otp]', e)
     return err('Verification failed. Please try again.', 500)

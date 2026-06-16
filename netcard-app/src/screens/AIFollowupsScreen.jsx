@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/apiFetch'
 import { Sparkles, ChevronDown, X, Copy, Check, Bookmark, SlidersHorizontal, Clock, Trash2, Loader, RefreshCw, CalendarDays } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
@@ -126,7 +127,7 @@ export default function AIFollowupsScreen() {
 
   // Fetch events for picker
   useEffect(() => {
-    fetch(`${API}/api/events`, { credentials: 'include' })
+    apiFetch(`/api/events`, { credentials: 'include' })
       .then(r => r.json())
       .then(d => { if (d.success && d.data?.length) setEvents(d.data) })
       .catch(() => {})
@@ -140,7 +141,7 @@ export default function AIFollowupsScreen() {
   }
 
   useEffect(() => {
-    fetch(`${API}/api/ai/followups`, { credentials: 'include' })
+    apiFetch(`/api/ai/followups`, { credentials: 'include' })
       .then(r => r.json())
       .then(d => {
         const rows = d.success ? (d.data || []) : []
@@ -156,7 +157,7 @@ export default function AIFollowupsScreen() {
     setGenerating(true)
     try {
       const body = activeEvent?.id ? { event_id: activeEvent.id } : {}
-      const r = await fetch(`${API}/api/ai/followups`, {
+      const r = await apiFetch(`/api/ai/followups`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -185,7 +186,7 @@ export default function AIFollowupsScreen() {
       bookmarked: s.bookmarked, channel, message: editedMessages[s.id] ?? s.message, sentAt: Date.now(),
     }
     setSentLog(log => [entry, ...log.filter(e => e.id !== s.id)])
-    fetch(`${API}/api/ai/followups/${s.id}`, {
+    apiFetch(`/api/ai/followups/${s.id}`, {
       method: 'PATCH', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'sent' }),
@@ -197,7 +198,7 @@ export default function AIFollowupsScreen() {
   }
   const handleDismiss = (id) => {
     setDismissed(d => [...d, id])
-    fetch(`${API}/api/ai/followups/${id}`, {
+    apiFetch(`/api/ai/followups/${id}`, {
       method: 'PATCH', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'dismissed' }),

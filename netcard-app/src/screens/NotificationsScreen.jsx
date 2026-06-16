@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/apiFetch'
 import { ArrowLeft, Bell, MessageSquare, Sparkles, Calendar, UserCheck, Zap, Loader } from 'lucide-react'
 import { useState, useMemo, useEffect } from 'react'
 
@@ -109,7 +110,7 @@ export default function NotificationsScreen({ goBack, navigate }) {
   const [loading, setLoading]     = useState(true)
 
   useEffect(() => {
-    fetch(`${API}/api/notifications`, { credentials: 'include' })
+    apiFetch(`/api/notifications`, { credentials: 'include' })
       .then(r => r.json())
       .then(d => { if (d.success) setApiNotifs((d.data || []).map(mapApiNotif)) })
       .catch(() => {})
@@ -129,14 +130,14 @@ export default function NotificationsScreen({ goBack, navigate }) {
     // Optimistic update
     setApiNotifs(prev => prev.map(n => n.id === id ? { ...n, unread: false } : n))
     // Persist to API (best-effort; feature notifs have string ids → ignored gracefully)
-    fetch(`${API}/api/notifications/${id}`, {
+    apiFetch(`/api/notifications/${id}`, {
       method: 'PATCH', credentials: 'include',
     }).catch(() => {})
   }
 
   const markAllRead = () => {
     setApiNotifs(prev => prev.map(n => ({ ...n, unread: false })))
-    fetch(`${API}/api/notifications`, {
+    apiFetch(`/api/notifications`, {
       method: 'PATCH', credentials: 'include',
     }).catch(() => {})
   }

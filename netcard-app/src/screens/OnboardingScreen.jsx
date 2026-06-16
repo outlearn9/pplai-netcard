@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/apiFetch'
 import { useState, useRef } from 'react'
 import { ArrowRight, ArrowLeft, User, Mail, Linkedin, Phone, Sparkles, Target } from 'lucide-react'
 
@@ -48,7 +49,7 @@ export default function OnboardingScreen({ navigate }) {
       offering:     offering.trim(),
     }
     try {
-      await fetch(`${API}/api/profile`, {
+      await apiFetch(`/api/profile`, {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

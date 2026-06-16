@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
-import { ArrowRight, ChevronDown, ArrowLeft, RotateCcw, User, Mail, Phone } from 'lucide-react'
+import { ArrowRight, ChevronDown, ArrowLeft, RotateCcw, User, Mail } from 'lucide-react'
 
 const API      = import.meta.env.VITE_API_URL  || ''
 const AUTH_URL = import.meta.env.VITE_AUTH_URL || 'http://localhost:3001'
+const IS_DEV   = import.meta.env.DEV
 
 const COUNTRIES = [
   { code: 'IN', dial: '+91',  flag: '🇮🇳', name: 'India' },
@@ -119,13 +120,20 @@ function InputField({ icon, label, value, onChange, placeholder, type = 'text', 
   )
 }
 
+function saveToken(token, name, email) {
+  localStorage.setItem('netcard_jwt', token)
+  localStorage.setItem('netcard_authed', '1')
+  if (name || email) {
+    const existing = JSON.parse(localStorage.getItem('netcard_last_user') || '{}')
+    localStorage.setItem('netcard_last_user', JSON.stringify({ ...existing, name: name || existing.name, email: email || existing.email }))
+  }
+}
+
 export default function AuthScreen({ onAuth }) {
   // phases: 'returning' | 'landing' | 'signup' | 'signupOtp' | 'signin' | 'signinOtp'
   const [phase, setPhase]       = useState('landing')
   const [country, setCountry]   = useState(COUNTRIES[0])
   const [showCountryPicker, setShowCountryPicker] = useState(false)
-  const [phone, setPhone]       = useState('')
-  const [otp, setOtp]           = useState('')
   const [resendTimer, setResendTimer] = useState(30)
   const [loading, setLoading]   = useState(false)
 
@@ -139,6 +147,8 @@ export default function AuthScreen({ onAuth }) {
   const [signinEmail, setSigninEmail] = useState('')
   const [signinCode,  setSigninCode]  = useState('')
   const [signinError, setSigninError] = useState('')
+
+  const goToSignIn = () => { setSigninEmail(signupEmail.trim()); setPhase('signin') }
 
   const lastUser = (() => {
     try { return JSON.parse(localStorage.getItem('netcard_last_user') || 'null') } catch { return null }
@@ -156,13 +166,33 @@ export default function AuthScreen({ onAuth }) {
     return () => clearInterval(id)
   }, [phase])
 
+  const devBypass = async (email, name) => {
+    setLoading(true)
+    try {
+      // Always use relative path so Vite proxy handles it (avoids CORS on direct port)
+      const r = await fetch(`/api/auth/dev-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, name }),
+      })
+      const d = await r.json()
+      if (d.data?.token) {
+        saveToken(d.data.token, d.data.name || name, email)
+        onAuth()
+        return
+      }
+    } catch {}
+    setLoading(false)
+  }
+
   const sendSignupOtp = async () => {
     if (!signupName.trim() || !signupEmail.trim()) return
+    if (IS_DEV) { devBypass(signupEmail.trim().toLowerCase(), signupName.trim()); return }
     setLoading(true)
     setSignupError('')
 
     try {
-      const r = await fetch(`${API}/api/auth/send-otp`, {
+      const r = await fetch(`/api/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -202,7 +232,7 @@ export default function AuthScreen({ onAuth }) {
     setSignupError('')
 
     try {
-      const r = await fetch(`${API}/api/auth/verify-otp`, {
+      const r = await fetch(`/api/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: signupEmail.trim(), code: signupCode }),
@@ -215,11 +245,8 @@ export default function AuthScreen({ onAuth }) {
         return
       }
 
-      // Signal to AuthScreen that it should retry the session check patiently
-      localStorage.setItem('netcard_authed', '1')
-      localStorage.setItem('netcard_auth_pending', '1')
-      // Redirect to Clerk sign-in token URL — sets session cookie then comes back to app
-      window.location.href = d.data.token_url
+      saveToken(d.data.token, d.data.name, signupEmail.trim().toLowerCase())
+      onAuth()
     } catch {
       setSignupError('Network error. Please try again.')
     }
@@ -234,10 +261,11 @@ export default function AuthScreen({ onAuth }) {
 
   const sendSigninOtp = async () => {
     if (!signinEmail.trim()) return
+    if (IS_DEV) { devBypass(signinEmail.trim().toLowerCase(), lastUser?.name || signinEmail.split('@')[0]); return }
     setLoading(true)
     setSigninError('')
     try {
-      const r = await fetch(`${API}/api/auth/send-otp`, {
+      const r = await fetch(`/api/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: signinEmail.trim() }),
@@ -255,15 +283,15 @@ export default function AuthScreen({ onAuth }) {
     setLoading(true)
     setSigninError('')
     try {
-      const r = await fetch(`${API}/api/auth/verify-otp`, {
+      const r = await fetch(`/api/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: signinEmail.trim(), code: signinCode }),
       })
       const d = await r.json()
       if (!r.ok) { setSigninError(d?.error || 'Invalid code. Please try again.'); setLoading(false); return }
-      localStorage.setItem('netcard_auth_pending', '1')
-      window.location.href = d.data.token_url
+      saveToken(d.data.token, d.data.name, signinEmail.trim().toLowerCase())
+      onAuth()
     } catch { setSigninError('Network error. Please try again.') }
     setLoading(false)
   }
@@ -643,123 +671,6 @@ export default function AuthScreen({ onAuth }) {
                 ? <span style={{ fontSize: 13, color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>Resend in {resendTimer}s</span>
                 : <button onClick={() => { setSigninCode(''); sendSigninOtp() }} style={{ display: 'flex', alignItems: 'center', gap: 5, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--indigo)', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-sans)' }}><RotateCcw size={13} /> Resend code</button>
               }
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── PHONE ENTRY ─── */}
-      {phase === 'phone' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '0 28px 36px' }}>
-          <button onClick={() => setPhase('landing')} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)', fontSize: 13, padding: '8px 0' }}>
-            <ArrowLeft size={15} /> Back
-          </button>
-
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: -0.6, marginBottom: 8 }}>
-              Enter your number
-            </div>
-            <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 32, lineHeight: 1.5 }}>
-              We'll send a one-time code to verify your identity.
-            </div>
-
-            <div style={{ background: 'var(--card)', borderRadius: 14, border: '1.5px solid var(--border-strong)', display: 'flex', alignItems: 'center', overflow: 'hidden', marginBottom: 16 }}>
-              <button
-                onClick={() => setShowCountryPicker(v => !v)}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '14px 12px', border: 'none', background: 'transparent', cursor: 'pointer', borderRight: '1px solid var(--border)', flexShrink: 0 }}
-              >
-                <span style={{ fontSize: 18 }}>{country.flag}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-sans)' }}>{country.dial}</span>
-                <ChevronDown size={12} color="var(--text-muted)" />
-              </button>
-              <input
-                type="tel"
-                placeholder="Phone number"
-                value={phone}
-                onChange={e => setPhone(e.target.value.replace(/\D/g, ''))}
-                style={{ flex: 1, padding: '14px 14px', border: 'none', background: 'transparent', fontSize: 15, fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', outline: 'none' }}
-                autoFocus
-              />
-            </div>
-
-            {showCountryPicker && (
-              <div style={{ background: 'var(--card)', borderRadius: 12, border: '1px solid var(--border)', marginBottom: 16, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
-                {COUNTRIES.map(c => (
-                  <button
-                    key={c.code}
-                    onClick={() => { setCountry(c); setShowCountryPicker(false) }}
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', border: 'none', background: c.code === country.code ? 'rgba(99,102,241,0.06)' : 'transparent', cursor: 'pointer', textAlign: 'left' }}
-                  >
-                    <span style={{ fontSize: 18 }}>{c.flag}</span>
-                    <span style={{ flex: 1, fontSize: 13, fontFamily: 'var(--font-sans)', color: 'var(--text-primary)' }}>{c.name}</span>
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>{c.dial}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <button
-              onClick={sendOtp}
-              disabled={phone.length < 6 || loading}
-              style={{
-                width: '100%', padding: '15px', borderRadius: 14, border: 'none',
-                background: phone.length >= 6 ? 'linear-gradient(135deg, var(--indigo), var(--indigo-dark))' : 'var(--border)',
-                color: phone.length >= 6 ? '#fff' : 'var(--text-muted)',
-                fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 600, cursor: phone.length >= 6 ? 'pointer' : 'default',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                transition: 'all 0.2s', boxShadow: phone.length >= 6 ? '0 6px 20px rgba(99,102,241,0.3)' : 'none',
-              }}
-            >
-              {loading ? 'Sending…' : <>Send OTP <ArrowRight size={16} /></>}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── OTP ─── */}
-      {phase === 'otp' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '0 28px 36px' }}>
-          <button onClick={() => setPhase('phone')} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)', fontSize: 13, padding: '8px 0' }}>
-            <ArrowLeft size={15} /> Back
-          </button>
-
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: -0.6, marginBottom: 8 }}>
-              Verify your number
-            </div>
-            <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 36, lineHeight: 1.5 }}>
-              Enter the 6-digit code sent to<br />
-              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{country.dial} {phone}</span>
-            </div>
-
-            <OTPInput value={otp} onChange={setOtp} />
-
-            <button
-              onClick={verifyOtp}
-              disabled={otp.length < 6 || loading}
-              style={{
-                width: '100%', padding: '15px', borderRadius: 14, border: 'none', marginTop: 28,
-                background: otp.length === 6 ? 'linear-gradient(135deg, var(--indigo), var(--indigo-dark))' : 'var(--border)',
-                color: otp.length === 6 ? '#fff' : 'var(--text-muted)',
-                fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 600, cursor: otp.length === 6 ? 'pointer' : 'default',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                transition: 'all 0.2s', boxShadow: otp.length === 6 ? '0 6px 20px rgba(99,102,241,0.3)' : 'none',
-              }}
-            >
-              {loading ? 'Verifying…' : <>Verify & Continue <ArrowRight size={16} /></>}
-            </button>
-
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 20 }}>
-              {resendTimer > 0 ? (
-                <span style={{ fontSize: 13, color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>Resend in {resendTimer}s</span>
-              ) : (
-                <button
-                  onClick={() => { setOtp(''); setPhase('otp') }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--indigo)', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-sans)' }}
-                >
-                  <RotateCcw size={13} /> Resend code
-                </button>
-              )}
             </div>
           </div>
         </div>

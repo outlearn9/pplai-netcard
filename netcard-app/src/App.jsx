@@ -124,7 +124,7 @@ function MiniQR() {
 }
 
 const MENU_ITEMS = [
-  { id: 'account',  label: 'Account Details',  sub: 'pplai.app/u/paras', icon: UserCircle,   color: '#6366F1' },
+  { id: 'account',  label: 'Account Details',  sub: null, icon: UserCircle,   color: '#6366F1' },
   { id: 'chatList',  label: 'Messages',           sub: null,                     icon: MessageSquare, color: '#6366F1' },
   { id: 'analytics', label: 'Analytics',         sub: 'Your networking stats',   icon: TrendingUp,    color: '#059669' },
   { id: 'team',     label: 'My Team',           sub: null,                icon: UsersRound,    color: '#059669' },
@@ -135,10 +135,16 @@ const MENU_ITEMS = [
 
 function ProfileDrawer({ open, onClose, navigate, onSignOut }) {
   const [activityOpen, setActivityOpen] = useState(false)
-
-  const profile = (() => {
+  const [profile, setProfile] = useState(() => {
     try { return JSON.parse(localStorage.getItem('netcard_my_profile') || '{}') } catch { return {} }
-  })()
+  })
+
+  useEffect(() => {
+    if (open) {
+      try { setProfile(JSON.parse(localStorage.getItem('netcard_my_profile') || '{}')) } catch {}
+    }
+  }, [open])
+
   const activityLog = (() => {
     try { return JSON.parse(localStorage.getItem('netcard_sent_log') || '[]') } catch { return [] }
   })()
@@ -147,6 +153,10 @@ function ProfileDrawer({ open, onClose, navigate, onSignOut }) {
   const title    = profile.title   || 'Your Title'
   const company  = profile.company || ''
   const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+  const username = profile.web?.replace(/^https?:\/\/(www\.)?pplai\.app\/u\//, '')
+                || profile.email?.split('@')[0]
+                || ''
+  const cardUrl  = username ? `pplai.app/u/${username}` : 'pplai.app/u/…'
 
   const grouped = activityLog.reduce((acc, e) => {
     const day = new Date(e.sentAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
@@ -203,7 +213,7 @@ function ProfileDrawer({ open, onClose, navigate, onSignOut }) {
             <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>{title}{company ? ` · ${company}` : ''}</div>
             {/* Profile URL */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 7, background: 'rgba(99,102,241,0.08)', borderRadius: 6, padding: '4px 8px', width: 'fit-content' }}>
-              <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--indigo)', fontFamily: 'var(--font-sans)' }}>pplai.app/u/paras</span>
+              <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--indigo)', fontFamily: 'var(--font-sans)' }}>{cardUrl}</span>
               <ExternalLink size={9} color="var(--indigo)" />
             </div>
           </div>
@@ -218,7 +228,9 @@ function ProfileDrawer({ open, onClose, navigate, onSignOut }) {
 
         {/* Menu list */}
         <div style={{ padding: '2px 10px', flex: 1 }}>
-          {MENU_ITEMS.map(({ id, label, sub, icon: Icon, color }) => (
+          {MENU_ITEMS.map(({ id, label, sub: rawSub, icon: Icon, color }) => {
+            const sub = id === 'account' ? cardUrl : rawSub
+            return (
             <button
               key={id}
               onClick={() => handleNav(id)}
@@ -240,7 +252,8 @@ function ProfileDrawer({ open, onClose, navigate, onSignOut }) {
               </div>
               <ChevronRight size={14} color="var(--text-muted)" />
             </button>
-          ))}
+            )
+          })}
 
           {/* Notifications */}
           <button
@@ -364,58 +377,63 @@ export default function App() {
   }
   const renderScreen = screenMapWithCard[nav.screen] ?? screenMapWithCard.home
 
-  // On every page load, probe the session. Retry patiently after OAuth/OTP redirects.
+  // On every page load, validate the stored JWT against /api/profile.
   useEffect(() => {
-    const fromAuth = new URLSearchParams(window.location.search).has('oauth')
-      || !!localStorage.getItem('netcard_auth_pending')
-    if (fromAuth) {
-      window.history.replaceState({}, '', window.location.pathname)
-      localStorage.removeItem('netcard_auth_pending')
+    const jwt = localStorage.getItem('netcard_jwt')
+
+    if (!jwt) {
+      // No token — show login immediately
+      setAuthed(false)
+      setSessionChecked(true)
+      return
     }
 
-    const maxAttempts = fromAuth ? 6 : 1
-    const retryDelay  = 1500
-    let attempt = 0
-
-    const probe = () => {
-      attempt++
-      fetch(`${API}/api/profile`, { credentials: 'include' })
-        .then(r => {
-          if (r.ok) {
-            r.json().then(d => {
-              if (d?.data?.name) {
-                localStorage.setItem('netcard_last_user', JSON.stringify({ name: d.data.name, email: d.data.email }))
-              }
-              localStorage.setItem('netcard_authed', '1')
-              setAuthed(true)
-              setSessionChecked(true)
-            })
-          } else if (attempt < maxAttempts) {
-            setTimeout(probe, retryDelay)
-          } else {
-            localStorage.removeItem('netcard_authed')
-            setAuthed(false)
+    const headers = { Authorization: `Bearer ${jwt}` }
+    fetch(`${API}/api/profile`, { credentials: 'include', headers })
+      .then(r => {
+        if (r.ok) {
+          r.json().then(d => {
+            if (d?.data) {
+              const p = d.data
+              localStorage.setItem('netcard_last_user', JSON.stringify({ name: p.name, email: p.email }))
+              // Merge API profile into cached profile so avatar initials etc. stay current
+              const existing = (() => { try { return JSON.parse(localStorage.getItem('netcard_my_profile') || '{}') } catch { return {} } })()
+              localStorage.setItem('netcard_my_profile', JSON.stringify({
+                ...existing,
+                name:     p.name     || existing.name,
+                email:    p.email    || existing.email,
+                title:    p.role     || existing.title,
+                company:  p.company  || existing.company,
+                phone:    p.phone    || existing.phone,
+                linkedin: p.linkedin_url || existing.linkedin,
+                web:      p.web_url  || existing.web,
+              }))
+            }
+            localStorage.setItem('netcard_authed', '1')
+            setAuthed(true)
             setSessionChecked(true)
-          }
-        })
-        .catch(() => {
-          if (attempt < maxAttempts) {
-            setTimeout(probe, retryDelay)
-          } else {
-            // Network error — trust localStorage if it was set
-            const trusted = !!localStorage.getItem('netcard_authed')
-            setAuthed(trusted)
-            setSessionChecked(true)
-          }
-        })
-    }
-
-    probe()
+          })
+        } else {
+          // Token invalid or expired
+          localStorage.removeItem('netcard_jwt')
+          localStorage.removeItem('netcard_authed')
+          setAuthed(false)
+          setSessionChecked(true)
+        }
+      })
+      .catch(() => {
+        // Network error — trust the stored flag so offline users aren't logged out
+        const trusted = !!localStorage.getItem('netcard_authed')
+        setAuthed(trusted)
+        setSessionChecked(true)
+      })
   }, [])
 
   // Poll unread notifications count every 60s
   const fetchUnread = useCallback(() => {
-    fetch(`${API}/api/notifications`, { credentials: 'include' })
+    const jwt = localStorage.getItem('netcard_jwt')
+    const authHeaders = jwt ? { Authorization: `Bearer ${jwt}` } : {}
+    fetch(`${API}/api/notifications`, { credentials: 'include', headers: authHeaders })
       .then(r => r.json())
       .then(d => {
         if (d.success) setUnreadCount((d.data || []).filter(n => !n.read_at).length)
@@ -461,7 +479,9 @@ export default function App() {
     }
 
     // No local data — fetch from API to distinguish new vs returning user
-    fetch(`${API}/api/profile`, { credentials: 'include' })
+    const jwt = localStorage.getItem('netcard_jwt')
+    const authHeaders = jwt ? { Authorization: `Bearer ${jwt}` } : {}
+    fetch(`${API}/api/profile`, { credentials: 'include', headers: authHeaders })
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(d => {
         const profile = d?.data || {}
@@ -518,10 +538,12 @@ export default function App() {
       return id
     })()
 
+    const jwt = localStorage.getItem('netcard_jwt')
+    const authHeaders = jwt ? { Authorization: `Bearer ${jwt}` } : {}
     let sessionId = null
     fetch(`${API}/api/sessions`, {
       method: 'POST', credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({ device_id: deviceId }),
     })
       .then(r => r.json())
@@ -547,9 +569,11 @@ export default function App() {
     if (!authed) return
     if (localStorage.getItem('netcard_seed_attempted')) return
     localStorage.setItem('netcard_seed_attempted', '1')
+    const jwt = localStorage.getItem('netcard_jwt')
+    const authHeaders = jwt ? { Authorization: `Bearer ${jwt}` } : {}
     fetch(`${API}/api/onboarding/seed`, {
       method: 'POST', credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
     })
       .then(r => r.json())
       .then(d => {
@@ -619,7 +643,7 @@ export default function App() {
         activeScreen={nav.screen}
         activeTab={nav.activeTab}
         navigate={nav.navigate}
-        onSignOut={() => { localStorage.removeItem('netcard_authed'); setAuthed(false) }}
+        onSignOut={() => { localStorage.removeItem('netcard_authed'); localStorage.removeItem('netcard_jwt'); setAuthed(false) }}
         unreadCount={unreadCount}
         isTablet={isTablet}
       >
@@ -756,7 +780,7 @@ export default function App() {
             open={showProfile}
             onClose={() => setShowProfile(false)}
             navigate={nav.navigate}
-            onSignOut={() => { localStorage.removeItem('netcard_authed'); setAuthed(false); setShowProfile(false) }}
+            onSignOut={() => { localStorage.removeItem('netcard_authed'); localStorage.removeItem('netcard_jwt'); setAuthed(false); setShowProfile(false) }}
           />,
           shellEl
         )}

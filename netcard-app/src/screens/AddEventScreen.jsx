@@ -1,4 +1,5 @@
-import { ArrowLeft, Calendar, Search, Gift, Check, Link, CalendarDays, Loader, Type } from 'lucide-react'
+import { apiFetch } from '../lib/apiFetch'
+import { ArrowLeft, Calendar, Search, Gift, Check, Link, CalendarDays, Loader, Type, Infinity } from 'lucide-react'
 import { useState } from 'react'
 import { readCache, writeCache, enqueue } from '../lib/syncQueue.js'
 import { PLACE_TYPES, readVenueOverrides, saveVenueOverride } from './EventsScreen.jsx'
@@ -11,6 +12,100 @@ function loadProfileDefaults() {
     const p = JSON.parse(localStorage.getItem('netcard_my_profile') || '{}')
     return { seeking: p.seeking || '', offering: p.offering || '' }
   } catch { return { seeking: '', offering: '' } }
+}
+
+function todayString() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+function parseDateStr(str) {
+  if (!str) return { day: '', month: '', year: '' }
+  const [y, m, d] = str.split('-')
+  return { day: String(parseInt(d, 10)), month: String(parseInt(m, 10)), year: y }
+}
+
+function buildDateStr({ day, month, year }) {
+  if (!day || !month || !year) return ''
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+function daysInMonth(month, year) {
+  if (!month || !year) return 31
+  return new Date(parseInt(year), parseInt(month), 0).getDate()
+}
+
+function DateDropdown({ value, onChange, label, allowOngoing = false }) {
+  const parsed = parseDateStr(value)
+  const [isOngoing, setIsOngoing] = useState(allowOngoing && !value)
+
+  const currentYear = new Date().getFullYear()
+  const years = Array.from({ length: 11 }, (_, i) => currentYear - 1 + i)
+  const days  = Array.from({ length: daysInMonth(parsed.month, parsed.year) }, (_, i) => i + 1)
+
+  const update = (field, val) => {
+    const next = { ...parsed, [field]: val }
+    onChange(buildDateStr(next))
+  }
+
+  const dropdownStyle = {
+    flex: 1, padding: '10px 8px', border: '1.5px solid var(--border-strong)',
+    borderRadius: 10, background: 'var(--card)', color: 'var(--text-primary)',
+    fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500,
+    outline: 'none', appearance: 'none', WebkitAppearance: 'none',
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
+    backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
+    paddingRight: 24, cursor: 'pointer',
+  }
+
+  if (allowOngoing && isOngoing) {
+    return (
+      <div>
+        {label && <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>{label}</div>}
+        <button
+          onClick={() => { setIsOngoing(false); onChange(todayString()) }}
+          style={{
+            width: '100%', padding: '10px 12px', border: '1.5px dashed var(--border-strong)',
+            borderRadius: 10, background: 'transparent', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            color: 'var(--text-muted)', fontFamily: 'var(--font-sans)', fontSize: 13,
+          }}
+        >
+          <Infinity size={14} /> Ongoing · tap to set end date
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      {label && <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>{label}</div>}
+      <div style={{ display: 'flex', gap: 6 }}>
+        <select value={parsed.day} onChange={e => update('day', e.target.value)} style={{ ...dropdownStyle, flex: '0 0 58px' }}>
+          <option value="">DD</option>
+          {days.map(d => <option key={d} value={d}>{d}</option>)}
+        </select>
+        <select value={parsed.month} onChange={e => update('month', e.target.value)} style={{ ...dropdownStyle }}>
+          <option value="">Month</option>
+          {MONTHS.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+        </select>
+        <select value={parsed.year} onChange={e => update('year', e.target.value)} style={{ ...dropdownStyle, flex: '0 0 72px' }}>
+          <option value="">YYYY</option>
+          {years.map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+      </div>
+      {allowOngoing && (
+        <button
+          onClick={() => { setIsOngoing(true); onChange('') }}
+          style={{ marginTop: 6, background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer', padding: 0, fontFamily: 'var(--font-sans)' }}
+        >
+          ↩ Set as ongoing / no end date
+        </button>
+      )}
+    </div>
+  )
 }
 
 const EMPTY_FORM = { name: '', startDate: '', endDate: '', location: '', seeking: '', offering: '' }
@@ -31,17 +126,27 @@ const NAME_PLACEHOLDER = {
   party:     "e.g. Diwali Party at Priya's",
 }
 
-const SHOW_DATES = ['event', 'travel']
+// Events/travel have specific dates; all others are ongoing by default
+const FIXED_DATE_TYPES = ['event', 'travel']
 
 function isLumaUrl(url) {
   return url.includes('luma.com') || url.includes('lu.ma')
 }
 
-function eventToForm(e, isEdit) {
+function eventToForm(e, isEdit, venueType) {
   const defaults = isEdit ? {} : loadProfileDefaults()
-  if (!e) return { ...EMPTY_FORM, ...defaults }
+  const today = todayString()
+  const isFixed = FIXED_DATE_TYPES.includes(venueType ?? 'event')
+  if (!e) return {
+    ...EMPTY_FORM,
+    startDate: today,
+    endDate: isFixed ? today : '',  // '' = ongoing for non-event types
+    ...defaults,
+  }
   return {
-    name: e.name || '', startDate: '', endDate: '',
+    name: e.name || '',
+    startDate: e.start_date || today,
+    endDate: e.end_date || (isFixed ? today : ''),
     location: e.location || '',
     seeking:  e.seeking  || defaults.seeking  || '',
     offering: e.offering || defaults.offering || '',
@@ -52,7 +157,7 @@ export default function AddEventScreen({ navigate, event }) {
   const isEdit      = Boolean(event?.id)
   const [venueType, setVenueType] = useState(event?.venue_type ?? 'event')
   const [tab, setTab]             = useState('manual')
-  const [form, setForm]           = useState(() => eventToForm(event, isEdit))
+  const [form, setForm]           = useState(() => eventToForm(event, isEdit, event?.venue_type ?? 'event'))
   const [setActive, setSetActive] = useState(!isEdit)
   const [lumaUrl, setLumaUrl]     = useState('')
   const [lumaLoading, setLumaLoading] = useState(false)
@@ -71,7 +176,7 @@ export default function AddEventScreen({ navigate, event }) {
     if (!isLumaUrl(lumaUrl)) { setLumaError('Must be a luma.com or lu.ma URL'); return }
     setLumaLoading(true)
     try {
-      const res  = await fetch(`${API}/api/events/import?url=${encodeURIComponent(lumaUrl)}`)
+      const res  = await apiFetch(`/api/events/import?url=${encodeURIComponent(lumaUrl)}`)
       const json = await res.json()
       if (!res.ok || !json.success) throw new Error(json.error || 'Could not fetch event')
       const pd = loadProfileDefaults()
@@ -128,7 +233,7 @@ export default function AddEventScreen({ navigate, event }) {
       const savedId = json.data?.id ?? event?.id
       if (savedId) saveVenueOverride(savedId, venueType)
 
-      const fresh = await fetch(`${API}/api/events`, { credentials: 'include' }).catch(() => null)
+      const fresh = await apiFetch(`/api/events`, { credentials: 'include' }).catch(() => null)
       if (fresh?.ok) {
         const fd   = await fresh.json()
         const ov   = readVenueOverrides()
@@ -178,7 +283,12 @@ export default function AddEventScreen({ navigate, event }) {
             return (
               <button
                 key={t.id}
-                onClick={() => setVenueType(t.id)}
+                onClick={() => {
+                  setVenueType(t.id)
+                  const today = todayString()
+                  const isFixed = FIXED_DATE_TYPES.includes(t.id)
+                  setForm(f => ({ ...f, startDate: today, endDate: isFixed ? today : '' }))
+                }}
                 style={{
                   flexShrink: 0,
                   display: 'flex', alignItems: 'center', gap: 6,
@@ -357,27 +467,20 @@ export default function AddEventScreen({ navigate, event }) {
               </div>
             </div>
 
-            {/* Dates — only for event/travel types */}
-            {SHOW_DATES.includes(venueType) && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div className="input-group">
-                  <label className="input-label">Start Date</label>
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <Calendar size={14} style={{ position: 'absolute', left: 13, color: 'var(--text-secondary)', pointerEvents: 'none' }} />
-                    <input type="date" className="input-field" style={{ paddingLeft: 36, colorScheme: 'dark' }}
-                      value={form.startDate} onChange={e => update('startDate', e.target.value)} />
-                  </div>
-                </div>
-                <div className="input-group">
-                  <label className="input-label">End Date</label>
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <Calendar size={14} style={{ position: 'absolute', left: 13, color: 'var(--text-secondary)', pointerEvents: 'none' }} />
-                    <input type="date" className="input-field" style={{ paddingLeft: 36, colorScheme: 'dark' }}
-                      value={form.endDate} onChange={e => update('endDate', e.target.value)} />
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Dates — shown for all types */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <DateDropdown
+                label="Start Date"
+                value={form.startDate}
+                onChange={v => update('startDate', v)}
+              />
+              <DateDropdown
+                label="End Date"
+                value={form.endDate}
+                onChange={v => update('endDate', v)}
+                allowOngoing={!FIXED_DATE_TYPES.includes(venueType)}
+              />
+            </div>
 
             <div className="input-group">
               <label className="input-label">Location</label>

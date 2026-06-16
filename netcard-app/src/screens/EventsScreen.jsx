@@ -1,12 +1,21 @@
-import { Plus, MapPin, Users, Pencil, Loader, WifiOff, UserPlus, Menu, Calendar, Mic2, Building2, PlaneTakeoff, Home, Dumbbell, Trophy, PartyPopper, Pin, Trash2 } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { apiFetch } from '../lib/apiFetch'
+import { Plus, MapPin, Users, Pencil, Loader, WifiOff, UserPlus, Menu, Calendar, Mic2, Building2, PlaneTakeoff, Home, Dumbbell, Trophy, PartyPopper, Trash2, Zap, GripVertical } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
 import { readCache, writeCache } from '../lib/syncQueue.js'
 
-const PINNED_KEY    = 'netcard_pinned_places'
 const OVERRIDE_KEY  = 'netcard_venue_overrides'
+const ORDER_KEY     = 'netcard_places_order'
 
-function readPinned() { try { return JSON.parse(localStorage.getItem(PINNED_KEY) ?? '[]') } catch { return [] } }
-function savePinned(ids) { localStorage.setItem(PINNED_KEY, JSON.stringify(ids)) }
+function readOrder() { try { return JSON.parse(localStorage.getItem(ORDER_KEY) ?? 'null') } catch { return null } }
+function saveOrder(ids) { localStorage.setItem(ORDER_KEY, JSON.stringify(ids)) }
+
+function applyOrder(items, order) {
+  if (!order || !order.length) return items
+  const map = Object.fromEntries(items.map(e => [e.id, e]))
+  const sorted = order.map(id => map[id]).filter(Boolean)
+  const rest   = items.filter(e => !order.includes(e.id))
+  return [...sorted, ...rest]
+}
 
 export function readVenueOverrides() { try { return JSON.parse(localStorage.getItem(OVERRIDE_KEY) ?? '{}') } catch { return {} } }
 export function saveVenueOverride(id, type) {
@@ -54,15 +63,77 @@ export default function EventsScreen({ navigate, onMenuOpen }) {
     const cached = readCache(CACHE_KEY) ?? []
     if (cached.length === 0) return SAMPLE_EVENTS
     const ov = readVenueOverrides()
-    return cached.map(e => ({ ...e, venue_type: ov[e.id] ?? e.venue_type ?? 'event' }))
+    const items = cached.map(e => ({ ...e, venue_type: ov[e.id] ?? e.venue_type ?? 'event' }))
+    return applyOrder(items, readOrder())
   })
   const [loading, setLoading]           = useState(true)
   const [isOffline, setIsOffline]       = useState(false)
-  const [pinned, setPinned]             = useState(() => readPinned())
-  const [confirmDelete, setConfirmDelete] = useState(null) // id being confirmed
+  const [confirmDelete, setConfirmDelete] = useState(null)
+  const [activating, setActivating]       = useState(null)
+
+  // Drag state
+  const dragIndex  = useRef(null)
+  const overIndex  = useRef(null)
+  const [dragId, setDragId]   = useState(null)  // which card is being dragged
+  const [overId, setOverId]   = useState(null)  // which card is the drop target
+
+  // Touch drag state
+  const touchStartY   = useRef(0)
+  const touchItemHeight = useRef(0)
+  const touchListRef  = useRef(null)
+
+  const handleActivate = async (e, ev) => {
+    ev.stopPropagation()
+    setActivating(e.id)
+    try {
+      await apiFetch(`/api/events/${e.id}/activate`, { method: 'POST', credentials: 'include' })
+      setEvents(prev => prev.map(x => ({ ...x, is_active: x.id === e.id })))
+    } catch {}
+    setActivating(null)
+  }
+
+  const reorder = (fromIdx, toIdx) => {
+    if (fromIdx === toIdx) return
+    setEvents(prev => {
+      const next = [...prev]
+      const [moved] = next.splice(fromIdx, 1)
+      next.splice(toIdx, 0, moved)
+      saveOrder(next.map(e => e.id))
+      return next
+    })
+  }
+
+  // ── Drag handlers (mouse/pointer) ──────────────────────────────────────────
+  const onDragStart = (idx, id, ev) => {
+    ev.stopPropagation()
+    dragIndex.current = idx
+    setDragId(id)
+    ev.dataTransfer.effectAllowed = 'move'
+    // Transparent drag image so card stays in place visually
+    const ghost = document.createElement('div')
+    ghost.style.cssText = 'position:absolute;top:-9999px;width:1px;height:1px'
+    document.body.appendChild(ghost)
+    ev.dataTransfer.setDragImage(ghost, 0, 0)
+    setTimeout(() => document.body.removeChild(ghost), 0)
+  }
+
+  const onDragEnter = (idx, id) => {
+    overIndex.current = idx
+    setOverId(id)
+  }
+
+  const onDragEnd = () => {
+    if (dragIndex.current !== null && overIndex.current !== null) {
+      reorder(dragIndex.current, overIndex.current)
+    }
+    dragIndex.current = null
+    overIndex.current = null
+    setDragId(null)
+    setOverId(null)
+  }
 
   useEffect(() => {
-    fetch(`${API}/api/events`, { credentials: 'include' })
+    apiFetch(`/api/events`, { credentials: 'include' })
       .then(r => r.json())
       .then(d => {
         setLoading(false)
@@ -73,26 +144,20 @@ export default function EventsScreen({ navigate, onMenuOpen }) {
           const typeCache = Object.fromEntries(cached.map(e => [e.id, e.venue_type]))
           const merged    = d.data.map(e => ({ ...e, venue_type: ov[e.id] ?? e.venue_type ?? typeCache[e.id] ?? 'event' }))
           writeCache(CACHE_KEY, merged)
-          // Blend in sample places whose names aren't in real data
-          const realNames = new Set(merged.map(e => e.name.toLowerCase()))
-          const blended   = [...merged, ...SAMPLE_EVENTS.filter(s => !realNames.has(s.name.toLowerCase()))]
-          setEvents(blended)
+          if (merged.length === 0) {
+            setEvents(SAMPLE_EVENTS)
+          } else {
+            setEvents(applyOrder(merged, readOrder()))
+          }
         }
       })
       .catch(() => { setIsOffline(true); setLoading(false) })
   }, [])
 
   useEffect(() => {
-    const active = events.find(e => e.is_active || e.status === 'active') ?? null
+    const active = events.find(e => e.is_active) ?? null
     localStorage.setItem('netcard_active_event', JSON.stringify(active))
   }, [events])
-
-  const togglePin = (id, ev) => {
-    ev.stopPropagation()
-    const next = pinned.includes(id) ? pinned.filter(p => p !== id) : [id, ...pinned]
-    setPinned(next)
-    savePinned(next)
-  }
 
   const handleDelete = async (id, ev) => {
     ev.stopPropagation()
@@ -100,9 +165,8 @@ export default function EventsScreen({ navigate, onMenuOpen }) {
     const next = events.filter(e => e.id !== id)
     setEvents(next)
     writeCache(CACHE_KEY, next)
-    setPinned(p => { const n = p.filter(p => p !== id); savePinned(n); return n })
     try {
-      await fetch(`${API}/api/events/${id}`, { method: 'DELETE', credentials: 'include' })
+      await apiFetch(`/api/events/${id}`, { method: 'DELETE', credentials: 'include' })
     } catch {}
   }
 
@@ -115,12 +179,6 @@ export default function EventsScreen({ navigate, onMenuOpen }) {
         : e.status === 'past'
       const matchType = typeFilter === null ? true : (e.venue_type ?? 'event') === typeFilter
       return matchStatus && matchType
-    })
-    // Pinned items float to top
-    .sort((a, b) => {
-      const ap = pinned.includes(a.id) ? 0 : 1
-      const bp = pinned.includes(b.id) ? 0 : 1
-      return ap - bp
     })
 
   return (
@@ -245,31 +303,39 @@ export default function EventsScreen({ navigate, onMenuOpen }) {
 
         {/* Places list */}
         {events.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div ref={touchListRef} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {filtered.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '24px 0', fontSize: 13, color: 'var(--text-secondary)' }}>
                 No places match this filter.
               </div>
-            ) : filtered.map(e => {
-              const isActive      = e.is_active || e.status === 'active'
+            ) : filtered.map((e, idx) => {
+              const isActive      = e.is_active
               const type          = getType(e.venue_type)
               const isTimeBounded = TIME_BOUNDED.has(type.id)
               const contactCount  = Array.isArray(e.contacts) ? (e.contacts[0]?.count ?? 0) : (e.contacts ?? 0)
               const dateStr       = isTimeBounded ? (e.dates || formatDates(e.start_date, e.end_date)) : null
+              const isDragging    = dragId === e.id
+              const isOver        = overId === e.id && dragId !== e.id
 
               return (
                 <div
                   key={e.id}
-                  onClick={() => navigate('eventContacts', e)}
+                  draggable
+                  onDragStart={ev => onDragStart(idx, e.id, ev)}
+                  onDragEnter={() => onDragEnter(idx, e.id)}
+                  onDragOver={ev => ev.preventDefault()}
+                  onDragEnd={onDragEnd}
+                  onClick={() => !dragId && navigate('eventContacts', e)}
                   style={{
                     background: 'var(--card)',
                     borderRadius: 20,
                     overflow: 'hidden',
-                    cursor: 'pointer',
-                    border: isActive ? '1.5px solid var(--green)' : `1.5px solid ${type.color}22`,
-                    boxShadow: isActive ? '0 4px 20px rgba(50,213,131,0.12)' : `0 2px 12px ${type.color}0d`,
-                    opacity: isTimeBounded && e.status === 'past' ? 0.7 : 1,
-                    transition: 'opacity 0.15s, box-shadow 0.15s',
+                    cursor: dragId ? 'grabbing' : 'pointer',
+                    border: isOver ? '1.5px dashed var(--indigo)' : isActive ? '1.5px solid var(--green)' : `1.5px solid ${type.color}22`,
+                    boxShadow: isDragging ? '0 8px 32px rgba(0,0,0,0.18)' : isActive ? '0 4px 20px rgba(50,213,131,0.12)' : `0 2px 12px ${type.color}0d`,
+                    opacity: isDragging ? 0.45 : (isTimeBounded && e.status === 'past' ? 0.7 : 1),
+                    transform: isOver && !isDragging ? 'translateY(-2px)' : 'none',
+                    transition: 'opacity 0.15s, box-shadow 0.15s, transform 0.12s',
                   }}
                 >
                   {/* Active banner */}
@@ -285,14 +351,19 @@ export default function EventsScreen({ navigate, onMenuOpen }) {
                     </div>
                   )}
 
-                  {pinned.includes(e.id) && !isActive && (
-                    <div style={{ background: 'rgba(99,102,241,0.07)', padding: '5px 14px', display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <Pin size={10} color="var(--indigo)" />
-                      <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--indigo)', letterSpacing: 0.3 }}>PINNED</span>
-                    </div>
-                  )}
 
-                  <div style={{ padding: '13px 16px', display: 'flex', gap: 12 }}>
+                  <div style={{ padding: '13px 16px', display: 'flex', gap: 10, alignItems: 'stretch' }}>
+                    {/* Drag grip */}
+                    <div
+                      onMouseDown={ev => ev.stopPropagation()}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0, width: 20, cursor: 'grab', color: 'var(--border-strong)',
+                        touchAction: 'none',
+                      }}
+                    >
+                      <GripVertical size={16} />
+                    </div>
                     {/* Venue type icon badge */}
                     <div style={{
                       width: 44, height: 44, borderRadius: 14, flexShrink: 0, marginTop: 1,
@@ -314,20 +385,24 @@ export default function EventsScreen({ navigate, onMenuOpen }) {
                           {e.name}
                         </span>
                         <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
-                          {/* Pin to top */}
-                          <button
-                            onClick={ev => togglePin(e.id, ev)}
-                            title={pinned.includes(e.id) ? 'Unpin' : 'Pin to top'}
-                            style={{
-                              width: 28, height: 28, borderRadius: '50%', border: 'none', cursor: 'pointer',
-                              background: pinned.includes(e.id) ? 'rgba(99,102,241,0.12)' : 'var(--elevated)',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              color: pinned.includes(e.id) ? 'var(--indigo)' : 'var(--text-secondary)',
-                              transition: 'all 0.15s',
-                            }}
-                          >
-                            <Pin size={11} style={{ transform: pinned.includes(e.id) ? 'none' : 'rotate(45deg)', transition: 'transform 0.15s' }} />
-                          </button>
+                          {/* Set Active */}
+                          {!isActive && (
+                            <button
+                              onClick={ev => handleActivate(e, ev)}
+                              disabled={activating === e.id}
+                              title="Set as active place"
+                              style={{
+                                width: 28, height: 28, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                                background: 'var(--elevated)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: 'var(--text-secondary)', transition: 'all 0.15s',
+                              }}
+                            >
+                              {activating === e.id
+                                ? <Loader size={11} style={{ animation: 'spin 1s linear infinite' }} />
+                                : <Zap size={11} />}
+                            </button>
+                          )}
                           {/* Delete */}
                           {confirmDelete === e.id ? (
                             <>

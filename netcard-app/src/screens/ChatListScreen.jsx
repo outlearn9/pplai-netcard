@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/apiFetch'
 import { Search, Edit, ArrowLeft } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -43,7 +44,7 @@ export default function ChatListScreen({ navigate, goBack }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch(`${API}/api/conversations`, { credentials: 'include' })
+    apiFetch(`/api/conversations`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(res => {
         const list = Array.isArray(res.data) ? res.data : []

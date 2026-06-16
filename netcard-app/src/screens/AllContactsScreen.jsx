@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react'
-import { Search, SlidersHorizontal, X, Bookmark, Check, Loader } from 'lucide-react'
+import { apiFetch } from '../lib/apiFetch'
+import { useState, useEffect, useRef } from 'react'
+import { Search, SlidersHorizontal, X, Bookmark, Check, Loader, Users, ChevronRight, Phone, MessageCircle } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { PLACE_TYPES } from './EventsScreen.jsx'
-
-const API = import.meta.env.VITE_API_URL || ''
 
 const GRADS = ['grad-purple', 'grad-green', 'grad-amber']
 function mapContact(c) {
@@ -20,21 +19,24 @@ function mapContact(c) {
     bookmarked: c.bookmarked  || false,
     followed:   c.followed_up || false,
     event:      c.met_event_name   || '',
+    eventId:    c.met_event_id     || '',
     venueType:  c.met_venue_type   || 'event',
     roleBucket: c.role_bucket      || '',
     type:       c.contact_type     || '',
     offering:   c.offering_bucket  || '',
     seeking:    c.seeking_bucket   || '',
+    phone:      c.phone            || '',
+    linkedin:   c.linkedin_url     || '',
   }
 }
 
 const FALLBACK_RAW = [
-  { id:'s1', name:'Sarah Raines',  role:'Product Manager',    company:'Stripe',           contact_tags:[{tag:'#fintech'},{tag:'#product'},{tag:'#hot-lead'}],       bookmarked:true,  followed_up:false, met_event_name:'TechConnect Summit 2025', role_bucket:'CXO',           contact_type:'Panelist',  offering_bucket:'SaaS',       seeking_bucket:'Clients'       },
-  { id:'s2', name:'Marcus Kim',    role:'Head of Engineering', company:'Linear',           contact_tags:[{tag:'#devtools'},{tag:'#api'}],                            bookmarked:false, followed_up:true,  met_event_name:'TechConnect Summit 2025', role_bucket:'Engg',          contact_type:'Panelist',  offering_bucket:'SaaS',       seeking_bucket:'Dist. Partners'},
-  { id:'s3', name:'Anika Torres',  role:'Founder & CEO',       company:'Bloom AI',         contact_tags:[{tag:'#seed'},{tag:'#ai'},{tag:'#intro-requested'}],        bookmarked:true,  followed_up:false, met_event_name:'AI Founders Mixer — NYC', role_bucket:'Founders',      contact_type:'Visitor',   offering_bucket:'AI Services', seeking_bucket:'Clients'       },
-  { id:'s4', name:'Raj Joshi',     role:'Principal',           company:'Sequoia Capital',  contact_tags:[{tag:'#vc'},{tag:'#fintech'},{tag:'#seed'}],                bookmarked:true,  followed_up:false, met_event_name:'AI Founders Mixer — NYC', role_bucket:'Investor VC/PE',contact_type:'Visitor',   offering_bucket:'Funding',    seeking_bucket:'Founders'      },
-  { id:'s5', name:'Lena Park',     role:'Head of Design',      company:'Figma',            contact_tags:[{tag:'#design'},{tag:'#ux'},{tag:'#enterprise'}],           bookmarked:true,  followed_up:true,  met_event_name:'SaaS Growth Summit',      role_bucket:'UX',            contact_type:'Exhibitor', offering_bucket:'SaaS',       seeking_bucket:'Early Customers'},
-  { id:'s6', name:'Devon Shaw',    role:'VP of Sales',         company:'Salesforce',       contact_tags:[{tag:'#crm'},{tag:'#enterprise'},{tag:'#partnership'}],     bookmarked:false, followed_up:false, met_event_name:'SaaS Growth Summit',      role_bucket:'Sales',         contact_type:'Exhibitor', offering_bucket:'SaaS',       seeking_bucket:'Dist. Partners'},
+  { id:'s1', name:'Sarah Raines',  role:'Product Manager',    company:'Stripe',           contact_tags:[{tag:'#fintech'},{tag:'#hot-lead'}],       bookmarked:true,  followed_up:false, met_event_name:'TechConnect Summit 2025', met_venue_type:'event',     role_bucket:'CXO',     contact_type:'Panelist' },
+  { id:'s2', name:'Marcus Kim',    role:'Head of Engineering', company:'Linear',           contact_tags:[{tag:'#devtools'},{tag:'#api'}],            bookmarked:false, followed_up:true,  met_event_name:'TechConnect Summit 2025', met_venue_type:'event',     role_bucket:'Engg',    contact_type:'Panelist' },
+  { id:'s3', name:'Anika Torres',  role:'Founder & CEO',       company:'Bloom AI',         contact_tags:[{tag:'#seed'},{tag:'#ai'}],                bookmarked:true,  followed_up:false, met_event_name:'AI Founders Mixer — NYC', met_venue_type:'event',     role_bucket:'Founders',contact_type:'Visitor'  },
+  { id:'s4', name:'Raj Joshi',     role:'Principal',           company:'Sequoia Capital',  contact_tags:[{tag:'#vc'},{tag:'#fintech'}],             bookmarked:true,  followed_up:false, met_event_name:'AI Founders Mixer — NYC', met_venue_type:'event',     role_bucket:'Investor VC/PE', contact_type:'Visitor' },
+  { id:'s5', name:'Lena Park',     role:'Head of Design',      company:'Figma',            contact_tags:[{tag:'#design'},{tag:'#ux'}],              bookmarked:true,  followed_up:true,  met_event_name:'WeWork Manyata Tech Park', met_venue_type:'workspace', role_bucket:'UX',      contact_type:'Exhibitor'},
+  { id:'s6', name:'Devon Shaw',    role:'VP of Sales',         company:'Salesforce',       contact_tags:[{tag:'#crm'},{tag:'#enterprise'}],         bookmarked:false, followed_up:false, met_event_name:'WeWork Manyata Tech Park', met_venue_type:'workspace', role_bucket:'Sales',   contact_type:'Exhibitor'},
 ]
 
 const ROLE_BUCKETS = ['Sales', 'Engg', 'UX', 'CXO', 'Ops', 'Investor VC/PE', 'Angel', 'Banker', 'Founders']
@@ -42,14 +44,16 @@ const TYPES = ['Exhibitor', 'Visitor', 'Panelist', 'Student', 'Organiser']
 const OFFERING_BUCKETS = ['IT Services', 'AI Services', 'SaaS', 'Funding', 'Bankers']
 const SEEKING_BUCKETS = ['Job', 'Clients', 'Dist. Partners', 'Early Customers']
 
-/**
- * @component AllContactsScreen
- * @description Master directory list rendering all contacts acquired by the user.
- * Features fuzzy-search functionality and sortable metric filters tied inherently to the backend APIs.
- */
+const TABS = [
+  { id: 'all',        label: 'All'       },
+  { id: 'bookmarked', label: 'Bookmarked'},
+  { id: 'by-place',   label: 'By Place'  },
+]
+
 export default function AllContactsScreen({ navigate }) {
   const [contacts, setContacts] = useState([])
   const [loading, setLoading]   = useState(true)
+  const [tab, setTab]           = useState('all')
   const [search, setSearch]     = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState({
@@ -58,12 +62,18 @@ export default function AllContactsScreen({ navigate }) {
     types: [],
     offerings: [],
     seekings: [],
-    bookmarked: false,
     followedUp: null,
   })
+  // Expanded place groups in By Place tab
+  const [expandedPlaces, setExpandedPlaces] = useState({})
+
+  const portalRef = useRef(null)
+  useEffect(() => {
+    portalRef.current = document.querySelector('.phone-shell') ?? document.body
+  }, [])
 
   useEffect(() => {
-    fetch(`${API}/api/contacts`, { credentials: 'include' })
+    apiFetch(`/api/contacts`, { credentials: 'include' })
       .then(r => r.json())
       .then(d => {
         const rows = d.success ? (d.data || []) : []
@@ -73,7 +83,7 @@ export default function AllContactsScreen({ navigate }) {
       .finally(() => setLoading(false))
   }, [])
 
-  // Derive unique places (name + venueType) from contacts
+  // Derive unique places from contacts
   const PLACE_OPTIONS = [...new Map(
     contacts.filter(c => c.event).map(c => [c.event, c.venueType])
   ).entries()].map(([name, venueType]) => ({ name, venueType: venueType || 'event' }))
@@ -83,23 +93,39 @@ export default function AllContactsScreen({ navigate }) {
     [key]: f[key].includes(val) ? f[key].filter(v => v !== val) : [...f[key], val]
   }))
 
-  const filtered = contacts.filter(c => {
+  const baseFiltered = contacts.filter(c => {
     if (search && !c.name.toLowerCase().includes(search.toLowerCase()) && !c.role.toLowerCase().includes(search.toLowerCase())) return false
     if (filters.events.length && !filters.events.includes(c.event)) return false
     if (filters.roleBuckets.length && !filters.roleBuckets.includes(c.roleBucket)) return false
     if (filters.types.length && !filters.types.includes(c.type)) return false
     if (filters.offerings.length && !filters.offerings.includes(c.offering)) return false
     if (filters.seekings.length && !filters.seekings.includes(c.seeking)) return false
-    if (filters.bookmarked && !c.bookmarked) return false
     if (filters.followedUp === true && !c.followed) return false
     if (filters.followedUp === false && c.followed) return false
     return true
   })
 
-  const activeFilterCount = filters.events.length + filters.roleBuckets.length + filters.types.length +
-    filters.offerings.length + filters.seekings.length + (filters.bookmarked ? 1 : 0) + (filters.followedUp !== null ? 1 : 0)
+  const filtered = tab === 'bookmarked'
+    ? baseFiltered.filter(c => c.bookmarked)
+    : baseFiltered
 
-  const clearAll = () => setFilters({ events: [], roleBuckets: [], types: [], offerings: [], seekings: [], bookmarked: false, followedUp: null })
+  const activeFilterCount = filters.events.length + filters.roleBuckets.length + filters.types.length +
+    filters.offerings.length + filters.seekings.length + (filters.followedUp !== null ? 1 : 0)
+
+  const clearAll = () => setFilters({ events: [], roleBuckets: [], types: [], offerings: [], seekings: [], followedUp: null })
+
+  // Group contacts by place for By Place tab
+  const byPlace = (() => {
+    const groups = new Map()
+    filtered.forEach(c => {
+      const key = c.event || '—'
+      if (!groups.has(key)) groups.set(key, { name: key, venueType: c.venueType, contacts: [] })
+      groups.get(key).contacts.push(c)
+    })
+    return [...groups.values()].sort((a, b) => b.contacts.length - a.contacts.length)
+  })()
+
+  const bookmarkedCount = contacts.filter(c => c.bookmarked).length
 
   const Chip = ({ label, active, onToggle, activeColor = 'var(--indigo)', activeBg = 'rgba(99,102,241,0.12)' }) => (
     <button onClick={onToggle} style={{
@@ -124,6 +150,67 @@ export default function AllContactsScreen({ navigate }) {
     </button>
   )
 
+  const ContactCard = ({ c }) => (
+    <div
+      onClick={() => navigate('contact', c)}
+      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'var(--card)', borderRadius: 16, cursor: 'pointer', border: '1px solid var(--border)', transition: 'all 0.15s' }}
+    >
+      <div className={`avatar ${c.grad}`} style={{ width: 42, height: 42, fontSize: 13, borderRadius: 12, color: c.textDark ? '#0B0B0E' : '#fff', flexShrink: 0 }}>
+        {c.initials}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{c.name}</div>
+        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: c.event ? 3 : (c.tags.length ? 4 : 0), whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.role}</div>
+        {c.event && tab !== 'by-place' && (() => {
+          const pt = PLACE_TYPES.find(t => t.id === c.venueType) ?? PLACE_TYPES[0]
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: c.tags.length ? 4 : 0, overflow: 'hidden' }}>
+              <pt.Icon size={10} color={pt.color} style={{ flexShrink: 0 }} />
+              <span style={{ fontSize: 10, color: pt.color, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>{c.event}</span>
+            </div>
+          )
+        })()}
+        {c.tags.length > 0 && (
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+            {c.tags.map(t => (
+              <span key={t} style={{ fontSize: 10, fontWeight: 500, color: 'var(--indigo)', background: 'rgba(99,102,241,0.1)', borderRadius: 5, padding: '2px 7px' }}>{t}</span>
+            ))}
+          </div>
+        )}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
+        {c.bookmarked && <Bookmark size={15} fill="var(--amber)" color="var(--amber)" />}
+        <div style={{ display: 'flex', gap: 4 }}>
+          {c.phone && (
+            <button
+              onClick={e => { e.stopPropagation(); window.open(`https://wa.me/${c.phone.replace(/\D/g, '')}`, '_blank') }}
+              style={{ width: 24, height: 24, borderRadius: 7, background: 'rgba(37,211,102,0.12)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <MessageCircle size={11} color="#25D366" />
+            </button>
+          )}
+          {c.phone && (
+            <button
+              onClick={e => { e.stopPropagation(); window.open(`tel:${c.phone}`) }}
+              style={{ width: 24, height: 24, borderRadius: 7, background: 'rgba(50,213,131,0.12)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Phone size={11} color="var(--green)" />
+            </button>
+          )}
+        </div>
+        {c.followed ? (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, color: 'var(--green)', background: 'rgba(50,213,131,0.12)', borderRadius: 6, padding: '3px 7px' }}>
+            <Check size={9} /> Done
+          </span>
+        ) : (
+          <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--coral)', background: 'rgba(232,90,79,0.1)', borderRadius: 6, padding: '3px 7px' }}>
+            Follow-up
+          </span>
+        )}
+      </div>
+    </div>
+  )
+
   return (
     <div className="screen" style={{ position: 'relative' }}>
       <div className="status-bar">
@@ -143,13 +230,13 @@ export default function AllContactsScreen({ navigate }) {
       </div>
 
       {/* Header */}
-      <div style={{ padding: '6px 16px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <div style={{ padding: '6px 16px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
           <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 26, fontWeight: 500, letterSpacing: -0.8, color: 'var(--text-primary)', marginBottom: 2 }}>
-            All Contacts
+            Contacts
           </h1>
           <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-            {loading ? 'Loading…' : `${filtered.length} contacts`}
+            {loading ? 'Loading…' : `${contacts.length} total · ${bookmarkedCount} bookmarked`}
           </p>
         </div>
         <button
@@ -173,6 +260,42 @@ export default function AllContactsScreen({ navigate }) {
         </button>
       </div>
 
+      {/* Tabs */}
+      <div style={{ padding: '0 16px 10px', display: 'flex', gap: 6 }}>
+        {TABS.map(t => {
+          const isActive = tab === t.id
+          const showBadge = t.id === 'bookmarked' && bookmarkedCount > 0
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '8px 16px', borderRadius: 100, cursor: 'pointer',
+                fontFamily: 'var(--font-sans)', fontSize: 13,
+                fontWeight: isActive ? 700 : 500,
+                background: isActive
+                  ? (t.id === 'bookmarked' ? 'rgba(255,181,71,0.18)' : 'var(--indigo)')
+                  : 'var(--card)',
+                color: isActive
+                  ? (t.id === 'bookmarked' ? 'var(--amber)' : '#fff')
+                  : 'var(--text-secondary)',
+                transition: 'all 0.15s',
+                border: isActive && t.id === 'bookmarked' ? '1.5px solid rgba(255,181,71,0.4)' : '1.5px solid transparent',
+              }}
+            >
+              {t.id === 'bookmarked' && <Bookmark size={12} fill={isActive ? 'var(--amber)' : 'none'} color={isActive ? 'var(--amber)' : 'var(--text-secondary)'} />}
+              {t.label}
+              {showBadge && !isActive && (
+                <span style={{ width: 17, height: 17, borderRadius: '50%', background: 'rgba(255,181,71,0.2)', color: 'var(--amber)', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {bookmarkedCount}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
       {/* Search */}
       <div style={{ padding: '0 16px 8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--card)', borderRadius: 14, padding: '0 14px', height: 44, border: '1px solid var(--border)' }}>
@@ -180,7 +303,7 @@ export default function AllContactsScreen({ navigate }) {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search contacts..."
+            placeholder={tab === 'bookmarked' ? 'Search bookmarked…' : tab === 'by-place' ? 'Search by name or role…' : 'Search contacts…'}
             style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 14, color: 'var(--text-primary)', fontFamily: 'var(--font-sans)' }}
           />
           {search && <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--text-muted)' }}><X size={14} /></button>}
@@ -203,14 +326,9 @@ export default function AllContactsScreen({ navigate }) {
               {r} <X size={9} />
             </button>
           ))}
-          {filters.bookmarked && (
-            <button onClick={() => setFilters(f => ({ ...f, bookmarked: false }))} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', background: 'rgba(255,181,71,0.15)', borderRadius: 100, border: 'none', color: 'var(--amber)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
-              Bookmarked <X size={9} />
-            </button>
-          )}
           {filters.followedUp === false && (
             <button onClick={() => setFilters(f => ({ ...f, followedUp: null }))} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', background: 'rgba(232,90,79,0.1)', borderRadius: 100, border: 'none', color: 'var(--coral)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
-              Not Followed-up <X size={9} />
+              Pending Follow-up <X size={9} />
             </button>
           )}
           <button onClick={clearAll} style={{ background: 'none', border: 'none', fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'var(--font-sans)', textDecoration: 'underline' }}>
@@ -225,59 +343,127 @@ export default function AllContactsScreen({ navigate }) {
           <div style={{ display: 'flex', justifyContent: 'center', padding: '48px 0', color: 'var(--text-secondary)' }}>
             <Loader size={22} style={{ animation: 'spin 1s linear infinite' }} />
           </div>
+
+        ) : tab === 'by-place' ? (
+          // ── By Place grouped view ──────────────────────────────────────────
+          byPlace.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
+              <Users size={32} style={{ margin: '0 auto 12px', display: 'block', opacity: 0.3 }} />
+              <p style={{ fontSize: 15, fontWeight: 500 }}>No contacts yet</p>
+              <p style={{ fontSize: 13, marginTop: 4 }}>Scan a QR or add contacts from a place</p>
+            </div>
+          ) : byPlace.map(group => {
+            const pt = PLACE_TYPES.find(t => t.id === group.venueType) ?? PLACE_TYPES[0]
+            const expanded = expandedPlaces[group.name] !== false  // default expanded
+            const bookmarked = group.contacts.filter(c => c.bookmarked).length
+            return (
+              <div key={group.name} style={{ marginBottom: 14 }}>
+                {/* Group header */}
+                <button
+                  onClick={() => setExpandedPlaces(prev => ({ ...prev, [group.name]: !expanded }))}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '10px 14px', background: pt.bg,
+                    borderRadius: expanded ? '14px 14px 0 0' : 14,
+                    border: `1.5px solid ${pt.color}30`,
+                    cursor: 'pointer', textAlign: 'left',
+                    transition: 'border-radius 0.15s',
+                  }}
+                >
+                  <div style={{ width: 28, height: 28, borderRadius: 9, background: `${pt.color}20`, border: `1.5px solid ${pt.color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <pt.Icon size={15} color={pt.color} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{group.name}</div>
+                    <div style={{ fontSize: 10, color: pt.color, fontWeight: 600, marginTop: 1 }}>
+                      {group.contacts.length} contact{group.contacts.length !== 1 ? 's' : ''}
+                      {bookmarked > 0 && <span style={{ color: 'var(--amber)', marginLeft: 6 }}>· {bookmarked} <Bookmark size={9} style={{ display: 'inline', verticalAlign: 'middle' }} /></span>}
+                    </div>
+                  </div>
+                  <ChevronRight size={16} color={pt.color} style={{ transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }} />
+                </button>
+
+                {/* Group contacts */}
+                {expanded && (
+                  <div style={{ borderRadius: '0 0 14px 14px', overflow: 'hidden', border: `1.5px solid ${pt.color}20`, borderTop: 'none' }}>
+                    {group.contacts.map((c, i) => (
+                      <div
+                        key={c.id}
+                        onClick={() => navigate('contact', c)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 10,
+                          padding: '10px 14px',
+                          background: 'var(--card)',
+                          borderTop: i > 0 ? '1px solid var(--border)' : 'none',
+                          cursor: 'pointer', transition: 'opacity 0.15s',
+                        }}
+                      >
+                        <div className={`avatar ${c.grad}`} style={{ width: 36, height: 36, fontSize: 11, borderRadius: 10, color: c.textDark ? '#0B0B0E' : '#fff', flexShrink: 0 }}>
+                          {c.initials}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{c.name}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.role}</div>
+                          {c.tags.length > 0 && (
+                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
+                              {c.tags.map(t => (
+                                <span key={t} style={{ fontSize: 9, fontWeight: 500, color: 'var(--indigo)', background: 'rgba(99,102,241,0.1)', borderRadius: 4, padding: '1px 6px' }}>{t}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                          {c.bookmarked && <Bookmark size={13} fill="var(--amber)" color="var(--amber)" />}
+                          {c.phone && (
+                            <button
+                              onClick={e => { e.stopPropagation(); window.open(`https://wa.me/${c.phone.replace(/\D/g, '')}`, '_blank') }}
+                              style={{ width: 24, height: 24, borderRadius: 7, background: 'rgba(37,211,102,0.12)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              <MessageCircle size={11} color="#25D366" />
+                            </button>
+                          )}
+                          <ChevronRight size={14} color="var(--text-muted)" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })
+
+        ) : tab === 'bookmarked' && filtered.length === 0 ? (
+          // ── Bookmarked empty state ─────────────────────────────────────────
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
+            <Bookmark size={32} style={{ margin: '0 auto 12px', display: 'block', opacity: 0.3 }} />
+            <p style={{ fontSize: 15, fontWeight: 500 }}>No bookmarks yet</p>
+            <p style={{ fontSize: 13, marginTop: 4 }}>Tap the bookmark icon on any contact to save them here</p>
+          </div>
+
         ) : filtered.length === 0 ? (
+          // ── All contacts empty state ───────────────────────────────────────
           <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
             <Search size={32} style={{ margin: '0 auto 12px', display: 'block', opacity: 0.3 }} />
             <p style={{ fontSize: 15, fontWeight: 500 }}>{contacts.length === 0 ? 'No contacts yet' : 'No contacts match'}</p>
-            <p style={{ fontSize: 13, marginTop: 4 }}>{contacts.length === 0 ? 'Scan a QR or add contacts manually' : 'Try adjusting your filters'}</p>
+            <p style={{ fontSize: 13, marginTop: 4 }}>{contacts.length === 0 ? 'Scan a QR or add contacts from a place' : 'Try adjusting your filters'}</p>
           </div>
-        ) : filtered.map(c => (
-          <div
-            key={c.id}
-            onClick={() => navigate('contact', c)}
-            style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'var(--card)', borderRadius: 16, cursor: 'pointer', border: '1px solid var(--border)', transition: 'all 0.15s' }}
-          >
-            <div className={`avatar ${c.grad}`} style={{ width: 42, height: 42, fontSize: 13, borderRadius: 12, color: c.textDark ? '#0B0B0E' : '#fff', flexShrink: 0 }}>
-              {c.initials}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{c.name}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.role}</div>
-              {c.event && (() => {
-                const pt = PLACE_TYPES.find(t => t.id === c.venueType) ?? PLACE_TYPES[0]
-                return (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 5, overflow: 'hidden' }}>
-                    <pt.Icon size={10} color={pt.color} style={{ flexShrink: 0 }} />
-                    <span style={{ fontSize: 10, color: pt.color, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>{c.event}</span>
-                  </div>
-                )
-              })()}
-              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                {c.tags.map(t => (
-                  <span key={t} style={{ fontSize: 10, fontWeight: 500, color: 'var(--indigo)', background: 'rgba(99,102,241,0.1)', borderRadius: 5, padding: '2px 7px' }}>{t}</span>
-                ))}
+
+        ) : (
+          // ── Flat list (All / Bookmarked) ───────────────────────────────────
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {tab === 'bookmarked' && (
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: 'var(--amber)', textTransform: 'uppercase', padding: '0 2px 4px', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Bookmark size={11} fill="var(--amber)" color="var(--amber)" /> {filtered.length} bookmarked across all places
               </div>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
-              {c.bookmarked && <Bookmark size={16} fill="var(--amber)" color="var(--amber)" />}
-              {c.followed ? (
-                <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, color: 'var(--green)', background: 'rgba(50,213,131,0.12)', borderRadius: 6, padding: '3px 7px' }}>
-                  <Check size={9} /> Followed
-                </span>
-              ) : (
-                <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--coral)', background: 'rgba(232,90,79,0.1)', borderRadius: 6, padding: '3px 7px' }}>
-                  Pending
-                </span>
-              )}
-            </div>
+            )}
+            {filtered.map(c => <ContactCard key={c.id} c={c} />)}
           </div>
-        ))}
+        )}
       </div>
 
-      {/* Filter bottom sheet — portal so it escapes the screen clip */}
-      {createPortal(
+      {/* Filter bottom sheet — portal */}
+      {portalRef.current && createPortal(
         <>
-          {/* Backdrop */}
           <div
             onClick={() => setShowFilters(false)}
             style={{
@@ -288,8 +474,6 @@ export default function AllContactsScreen({ navigate }) {
               transition: 'opacity 0.25s',
             }}
           />
-
-          {/* Sheet */}
           <div style={{
             position: 'absolute', bottom: 0, left: 0, right: 0,
             background: 'var(--card)', borderRadius: '22px 22px 0 0',
@@ -300,8 +484,6 @@ export default function AllContactsScreen({ navigate }) {
             maxHeight: '90%',
             display: 'flex', flexDirection: 'column',
           }}>
-
-            {/* ── Fixed top: handle + header ── */}
             <div style={{ padding: '0 20px', flexShrink: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
                 <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)' }} />
@@ -321,10 +503,9 @@ export default function AllContactsScreen({ navigate }) {
               </div>
             </div>
 
-            {/* ── Scrollable filter body ── */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px', minHeight: 0 }}>
 
-              {/* ── Place ── */}
+              {/* Place */}
               <div style={{ marginBottom: 14 }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 7 }}>Place</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -356,29 +537,18 @@ export default function AllContactsScreen({ navigate }) {
 
               <div style={{ height: 1, background: 'var(--border)', marginBottom: 14 }} />
 
-              {/* ── Followed-up ── */}
+              {/* Followed-up */}
               <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 7 }}>Followed-up</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 7 }}>Follow-up status</div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <Chip label="Yes" active={filters.followedUp === true}  onToggle={() => setFilters(f => ({ ...f, followedUp: f.followedUp === true  ? null : true  }))} activeColor="var(--green)" activeBg="rgba(50,213,131,0.12)" />
-                  <Chip label="No"  active={filters.followedUp === false} onToggle={() => setFilters(f => ({ ...f, followedUp: f.followedUp === false ? null : false }))} activeColor="var(--coral)" activeBg="rgba(232,90,79,0.1)" />
+                  <Chip label="Done" active={filters.followedUp === true}  onToggle={() => setFilters(f => ({ ...f, followedUp: f.followedUp === true  ? null : true  }))} activeColor="var(--green)" activeBg="rgba(50,213,131,0.12)" />
+                  <Chip label="Pending" active={filters.followedUp === false} onToggle={() => setFilters(f => ({ ...f, followedUp: f.followedUp === false ? null : false }))} activeColor="var(--coral)" activeBg="rgba(232,90,79,0.1)" />
                 </div>
               </div>
 
               <div style={{ height: 1, background: 'var(--border)', marginBottom: 14 }} />
 
-              {/* ── Bookmarked ── */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Bookmark size={14} fill={filters.bookmarked ? 'var(--amber)' : 'none'} color={filters.bookmarked ? 'var(--amber)' : 'var(--text-secondary)'} />
-                  <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500, fontFamily: 'var(--font-sans)' }}>Bookmarked only</span>
-                </div>
-                <Toggle active={filters.bookmarked} onToggle={() => setFilters(f => ({ ...f, bookmarked: !f.bookmarked }))} activeColor="var(--amber)" />
-              </div>
-
-              <div style={{ height: 1, background: 'var(--border)', marginBottom: 14 }} />
-
-              {/* ── Role Bucket ── */}
+              {/* Role Bucket */}
               <div style={{ marginBottom: 14 }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 7 }}>Role</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -388,7 +558,7 @@ export default function AllContactsScreen({ navigate }) {
 
               <div style={{ height: 1, background: 'var(--border)', marginBottom: 14 }} />
 
-              {/* ── Type ── */}
+              {/* Type */}
               <div style={{ marginBottom: 14 }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 7 }}>Type</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -398,7 +568,7 @@ export default function AllContactsScreen({ navigate }) {
 
               <div style={{ height: 1, background: 'var(--border)', marginBottom: 14 }} />
 
-              {/* ── Offering ── */}
+              {/* Offering */}
               <div style={{ marginBottom: 14 }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 7 }}>Offering</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -408,7 +578,7 @@ export default function AllContactsScreen({ navigate }) {
 
               <div style={{ height: 1, background: 'var(--border)', marginBottom: 14 }} />
 
-              {/* ── Seeking ── */}
+              {/* Seeking */}
               <div style={{ marginBottom: 16 }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 7 }}>Seeking</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -417,18 +587,17 @@ export default function AllContactsScreen({ navigate }) {
               </div>
             </div>
 
-            {/* ── Fixed bottom: Apply button ── */}
             <div style={{ padding: '12px 20px 28px', flexShrink: 0, borderTop: '1px solid var(--border)', background: 'var(--card)' }}>
               <button
                 onClick={() => setShowFilters(false)}
                 style={{ width: '100%', height: 50, background: 'var(--indigo)', border: 'none', borderRadius: 14, color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-sans)', boxShadow: '0 4px 14px rgba(99,102,241,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
               >
-                <Check size={16} /> Apply Filters · {filtered.length} result{filtered.length !== 1 ? 's' : ''}
+                <Check size={16} /> Apply · {filtered.length} result{filtered.length !== 1 ? 's' : ''}
               </button>
             </div>
           </div>
         </>,
-        document.querySelector('.phone-shell') ?? document.body
+        portalRef.current
       )}
     </div>
   )

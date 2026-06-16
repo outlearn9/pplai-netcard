@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/apiFetch'
 import { useState, useEffect, useRef } from 'react'
 import { ArrowLeft, Send, Check, Bug, Lightbulb, HelpCircle, Loader, Clock, ChevronDown, ChevronUp, MessageCircle } from 'lucide-react'
 
@@ -33,7 +34,7 @@ function TicketThread({ ticket }) {
 
   const loadReplies = async () => {
     try {
-      const r = await fetch(`${API}/api/support/${ticket.id}/replies`, { credentials: 'include' })
+      const r = await apiFetch(`/api/support/${ticket.id}/replies`, { credentials: 'include' })
       const d = await r.json()
       if (d.success) setReplies(d.data)
     } catch { setReplies([]) }
@@ -48,7 +49,7 @@ function TicketThread({ ticket }) {
     if (!replyText.trim() || sending) return
     setSending(true)
     try {
-      const r = await fetch(`${API}/api/support/${ticket.id}/replies`, {
+      const r = await apiFetch(`/api/support/${ticket.id}/replies`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ body: replyText.trim() }),
@@ -152,7 +153,7 @@ export default function HelpSupportScreen({ navigate, goBack }) {
   const cat = CATEGORIES.find(c => c.id === category)
 
   useEffect(() => {
-    fetch(`${API}/api/support`, { credentials: 'include' })
+    apiFetch(`/api/support`, { credentials: 'include' })
       .then(r => r.json())
       .then(d => { if (d.success) setTickets(d.data) })
       .catch(() => {})
@@ -164,7 +165,7 @@ export default function HelpSupportScreen({ navigate, goBack }) {
     try {
       const body = { category, message: message.trim() }
       if (email.trim()) body.email = email.trim()
-      const r = await fetch(`${API}/api/support`, {
+      const r = await apiFetch(`/api/support`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

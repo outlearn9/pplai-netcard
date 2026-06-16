@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/apiFetch'
 import { ArrowLeft, MoreHorizontal, MessageCircle, Mail, Linkedin, Sparkles, Bookmark, Plus, Pencil, Trash2, Copy, RefreshCw, MapPin, Clock, Calendar } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -26,9 +27,9 @@ export default function ContactScreen({ navigate, goBack, contact, screenData })
   useEffect(() => {
     if (!contactId) return
     Promise.all([
-      fetch(`${API}/api/contacts/${contactId}`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
-      fetch(`${API}/api/contacts/${contactId}/notes`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
-      fetch(`${API}/api/contacts/${contactId}/tags`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
+      apiFetch(`/api/contacts/${contactId}`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
+      apiFetch(`/api/contacts/${contactId}/notes`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
+      apiFetch(`/api/contacts/${contactId}/tags`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
     ]).then(([contactRes, notesRes, tagsRes]) => {
       if (contactRes?.data) {
         const d = contactRes.data
@@ -47,7 +48,7 @@ export default function ContactScreen({ navigate, goBack, contact, screenData })
 
   const handleAddNote = async (content) => {
     if (!contactId || !content.trim()) return
-    const res = await fetch(`${API}/api/contacts/${contactId}/notes`, {
+    const res = await apiFetch(`/api/contacts/${contactId}/notes`, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content }),
