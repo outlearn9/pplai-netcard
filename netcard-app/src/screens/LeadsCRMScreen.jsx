@@ -618,7 +618,10 @@ export default function LeadsCRMScreen({ navigate, goBack }) {
           <div onClick={()=>setDetail(null)} style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.45)', zIndex:40 }}/>
           <div style={{ position:'absolute', bottom:0, left:0, right:0, background:'var(--bg)', borderRadius:'20px 20px 0 0', padding:'0 0 36px', zIndex:50, maxHeight:'88%', display:'flex', flexDirection:'column' }}>
             <div style={{ padding:'14px 20px 0' }}>
-              <div style={{ width:36, height:4, borderRadius:2, background:'var(--border)', margin:'0 auto 16px' }}/>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'center', position:'relative', marginBottom:16 }}>
+                <div style={{ width:36, height:4, borderRadius:2, background:'var(--border)' }}/>
+                <button onClick={()=>setDetail(null)} style={{ position:'absolute', right:0, top:'50%', transform:'translateY(-50%)', background:'var(--elevated)', border:'none', borderRadius:'50%', width:28, height:28, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--text-secondary)' }}><X size={15}/></button>
+              </div>
               <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:14 }}>
                 <div className={`avatar ${detail.grad}`} style={{ width:52, height:52, fontSize:16 }}>{detail.initials}</div>
                 <div style={{ flex:1 }}>
@@ -772,8 +775,11 @@ export default function LeadsCRMScreen({ navigate, goBack }) {
       {showAdd && (
         <>
           <div onClick={()=>setShowAdd(false)} style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.45)', zIndex:40 }}/>
-          <div style={{ position:'absolute', bottom:0, left:0, right:0, background:'var(--bg)', borderRadius:'20px 20px 0 0', padding:'20px 20px 40px', zIndex:50, maxHeight:'85%', overflowY:'auto' }}>
-            <div style={{ width:36, height:4, borderRadius:2, background:'var(--border)', margin:'0 auto 18px' }}/>
+          <div style={{ position:'absolute', bottom:0, left:0, right:0, background:'var(--bg)', borderRadius:'20px 20px 0 0', padding:'16px 20px 40px', zIndex:50, maxHeight:'85%', overflowY:'auto' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'center', position:'relative', marginBottom:18 }}>
+              <div style={{ width:36, height:4, borderRadius:2, background:'var(--border)' }}/>
+              <button onClick={()=>setShowAdd(false)} style={{ position:'absolute', right:0, top:'50%', transform:'translateY(-50%)', background:'var(--elevated)', border:'none', borderRadius:'50%', width:28, height:28, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--text-secondary)' }}><X size={15}/></button>
+            </div>
             <h3 style={{ fontFamily:'var(--font-serif)', fontSize:18, fontWeight:600, color:'var(--text-primary)', marginBottom:14 }}>Add Lead</h3>
             <FI label="Name *"   value={form.name}    onChange={setF('name')}    placeholder="Full name"/>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
