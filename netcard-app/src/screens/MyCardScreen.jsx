@@ -591,7 +591,7 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
           )}
 
           {/* Avatar — 72px, same top-left position as original */}
-          <div style={{ position: 'absolute', left: 20, top: 40 }}>
+          <div style={{ position: 'absolute', left: 20, top: 52 }}>
             <div style={{ width: 72, height: 72, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.2)', background: 'linear-gradient(135deg, rgba(99,102,241,0.6), rgba(168,85,247,0.6))', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backdropFilter: 'blur(8px)' }}>
               {activeAvatar
                 ? <img src={activeAvatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
