@@ -756,7 +756,8 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
               <div style={{ height:1, background:'var(--border)', margin:'4px 0 18px' }} />
               <div style={{ fontSize:11, fontWeight:700, color:'var(--text-secondary)', letterSpacing:0.5, textTransform:'uppercase', marginBottom:12 }}>Contact</div>
               <EmailField value={newCardDraft.email} onChange={setNC('email')} />
-              <PhoneField label="Phone number" value={newCardDraft.phone} onChange={setNC('phone')} />
+              <PhoneField label="Phone number" value={newCardDraft.phone} onChange={val => { setNC('phone')(val); if (newCardDraft.whatsapp === newCardDraft.phone) setNewCardDraft(d => ({ ...d, phone: val, whatsapp: val })) }} />
+              <PhoneField label="WhatsApp" value={newCardDraft.whatsapp} onChange={setNC('whatsapp')} />
               <LinkedinField value={newCardDraft.linkedin} onChange={setNC('linkedin')} />
               <UrlField value={newCardDraft.web} onChange={setNC('web')} />
 
@@ -875,6 +876,7 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
               <div style={{ fontSize:11, fontWeight:700, color:'var(--text-secondary)', letterSpacing:0.5, textTransform:'uppercase', marginBottom:12 }}>Contact</div>
               <EmailField value={extraDraft.email} onChange={setED('email')} />
               <PhoneField label="Phone number" value={extraDraft.phone} onChange={setED('phone')} />
+              <PhoneField label="WhatsApp" value={extraDraft.whatsapp} onChange={setED('whatsapp')} />
               <LinkedinField value={extraDraft.linkedin} onChange={setED('linkedin')} />
               <UrlField value={extraDraft.web} onChange={setED('web')} />
 
