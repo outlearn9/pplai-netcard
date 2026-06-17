@@ -455,35 +455,37 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
             style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.55)', zIndex:60, pointerEvents: editingUrl ? 'auto' : 'none', opacity: editingUrl ? 1 : 0, transition:'opacity 0.2s' }}
           />
           <div style={{ position:'absolute', bottom:0, left:0, right:0, background:'var(--card)', borderRadius:'22px 22px 0 0', padding:'20px 20px 36px', zIndex:61, transform: editingUrl ? 'translateY(0)' : 'translateY(100%)', transition:'transform 0.28s cubic-bezier(0.32,0.72,0,1)', boxShadow:'0 -6px 40px rgba(0,0,0,0.45)' }}>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
-              <span style={{ fontSize:15, fontWeight:600, color:'var(--text-primary)', fontFamily:'var(--font-sans)' }}>Your card URL</span>
-              <button onClick={() => setEditingUrl(false)} style={{ width:28, height:28, borderRadius:'50%', border:'none', background:'var(--elevated)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-secondary)' }}><X size={14}/></button>
-            </div>
-            <div style={{ display:'flex', alignItems:'center', background:'var(--elevated)', border:`1.5px solid ${urlStatus==='available' ? 'var(--green)' : urlStatus==='taken'||urlStatus==='invalid' ? 'var(--coral)' : 'var(--border)'}`, borderRadius:12, overflow:'hidden', height:46 }}>
-              <span style={{ padding:'0 4px 0 14px', fontSize:13, color:'var(--text-muted)', whiteSpace:'nowrap', fontFamily:'var(--font-sans)' }}>pplai.app/u/</span>
-              <input
-                autoFocus
-                value={urlDraft}
-                onChange={e => handleUrlDraftChange(e.target.value)}
-                placeholder="your-username"
-                style={{ flex:1, padding:'0 8px', height:'100%', border:'none', background:'transparent', fontSize:14, fontFamily:'var(--font-sans)', color:'var(--text-primary)', outline:'none', minWidth:0 }}
-              />
-            </div>
-            <div style={{ fontSize:11, color: urlStatus==='available' ? 'var(--green)' : urlStatus==='taken'||urlStatus==='invalid' ? 'var(--coral)' : 'var(--text-muted)', marginTop:6, fontFamily:'var(--font-sans)', minHeight:16 }}>
-              {urlStatus==='available' && '✓ Available'}
-              {urlStatus==='taken' && '✗ Already taken'}
-              {urlStatus==='invalid' && '✗ Min 3 chars: a–z, 0–9, - or _'}
-              {urlStatus==='checking' && 'Checking…'}
-              {!urlStatus && 'Letters, numbers, - and _ only'}
-            </div>
-            <button
-              onClick={saveUrl}
-              disabled={urlStatus !== 'available'}
-              className="btn-primary"
-              style={{ marginTop:14, display:'flex', alignItems:'center', justifyContent:'center', gap:6, opacity: urlStatus==='available' ? 1 : 0.4 }}
-            >
-              <Check size={15}/> Save URL
-            </button>
+            {editingUrl && <>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
+                <span style={{ fontSize:15, fontWeight:600, color:'var(--text-primary)', fontFamily:'var(--font-sans)' }}>Your card URL</span>
+                <button onClick={() => setEditingUrl(false)} style={{ width:28, height:28, borderRadius:'50%', border:'none', background:'var(--elevated)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-secondary)' }}><X size={14}/></button>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', background:'var(--elevated)', border:`1.5px solid ${urlStatus==='available' ? 'var(--green)' : urlStatus==='taken'||urlStatus==='invalid' ? 'var(--coral)' : 'var(--border)'}`, borderRadius:12, overflow:'hidden', height:46 }}>
+                <span style={{ padding:'0 4px 0 14px', fontSize:13, color:'var(--text-muted)', whiteSpace:'nowrap', fontFamily:'var(--font-sans)' }}>pplai.app/u/</span>
+                <input
+                  autoFocus
+                  value={urlDraft}
+                  onChange={e => handleUrlDraftChange(e.target.value)}
+                  placeholder="your-username"
+                  style={{ flex:1, padding:'0 8px', height:'100%', border:'none', background:'transparent', fontSize:14, fontFamily:'var(--font-sans)', color:'var(--text-primary)', outline:'none', minWidth:0 }}
+                />
+              </div>
+              <div style={{ fontSize:11, color: urlStatus==='available' ? 'var(--green)' : urlStatus==='taken'||urlStatus==='invalid' ? 'var(--coral)' : 'var(--text-muted)', marginTop:6, fontFamily:'var(--font-sans)', minHeight:16 }}>
+                {urlStatus==='available' && '✓ Available'}
+                {urlStatus==='taken' && '✗ Already taken'}
+                {urlStatus==='invalid' && '✗ Min 3 chars: a–z, 0–9, - or _'}
+                {urlStatus==='checking' && 'Checking…'}
+                {!urlStatus && 'Letters, numbers, - and _ only'}
+              </div>
+              <button
+                onClick={saveUrl}
+                disabled={urlStatus !== 'available'}
+                className="btn-primary"
+                style={{ marginTop:14, display:'flex', alignItems:'center', justifyContent:'center', gap:6, opacity: urlStatus==='available' ? 1 : 0.4 }}
+              >
+                <Check size={15}/> Save URL
+              </button>
+            </>}
           </div>
         </>,
         portalRef.current
@@ -512,8 +514,9 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
             transform: showEdit ? 'translateY(0)' : 'translateY(100%)',
             transition: 'transform 0.32s cubic-bezier(0.32,0.72,0,1)',
             boxShadow: '0 -6px 40px rgba(0,0,0,0.45)',
-            maxHeight: '85%', overflowY: 'auto',
+            maxHeight: '85%', overflowY: showEdit ? 'auto' : 'hidden',
           }}>
+          {showEdit && <>
             {/* Handle */}
             <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px', position: 'sticky', top: 0, background: 'var(--card)', zIndex: 62 }}>
               <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)' }} />
@@ -617,6 +620,7 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
                 {saving ? 'Saving…' : 'Save Changes'}
               </button>
             </div>
+          </>}
           </div>
         </>,
         portalRef.current
