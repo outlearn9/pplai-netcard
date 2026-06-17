@@ -4,13 +4,18 @@ import { createPortal } from 'react-dom'
 import { Pencil, Mail, Phone, Send, Search, Gift, Copy, Globe, X, Check, Menu, AlertCircle } from 'lucide-react'
 
 const PPLIcon = ({ size = 18 }) => (
-  <div style={{ width: size, height: size, borderRadius: size * 0.28, background: 'linear-gradient(135deg,#6366F1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-    <svg width={size * 0.65} height={size * 0.65} viewBox="0 0 12 12" fill="none">
-      <circle cx="4" cy="4" r="2.2" fill="white" opacity="0.9"/>
-      <circle cx="8.5" cy="4" r="2.2" fill="white" opacity="0.55"/>
-      <circle cx="6.5" cy="8.5" r="2.2" fill="white" opacity="0.72"/>
-    </svg>
-  </div>
+  <svg width={size} height={size} viewBox="0 0 18 18" fill="none" style={{ flexShrink: 0, display: 'block' }}>
+    <defs>
+      <linearGradient id="ppl-grad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor="#6366F1"/>
+        <stop offset="100%" stopColor="#a855f7"/>
+      </linearGradient>
+    </defs>
+    <rect width="18" height="18" rx="5" fill="url(#ppl-grad)"/>
+    <circle cx="6.5" cy="6.5" r="2.8" fill="white" opacity="0.9"/>
+    <circle cx="12" cy="6.5" r="2.8" fill="white" opacity="0.55"/>
+    <circle cx="9.5" cy="12" r="2.8" fill="white" opacity="0.72"/>
+  </svg>
 )
 
 const API = import.meta.env.VITE_API_URL || ''
