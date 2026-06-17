@@ -33,6 +33,31 @@ const BLANK_CARD = (base) => ({
   seeking: '', offering: '',
 })
 
+// ─── Validation helpers ──────────────────────────────────────────────────────
+const validateEmail = (v) => {
+  if (!v) return null
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim()) ? 'ok' : 'Invalid email format'
+}
+const validateUrl = (v) => {
+  if (!v) return null
+  const s = v.trim()
+  // Accept bare domains like "pplai.co" or full https:// URLs
+  try { new URL(s.startsWith('http') ? s : `https://${s}`) } catch { return 'Invalid URL' }
+  if (!/\.[a-z]{2,}/.test(s)) return 'Invalid URL'
+  return 'ok'
+}
+const validateLinkedin = (v) => {
+  if (!v) return null
+  const s = v.trim().replace(/^https?:\/\//, '')
+  return /^(www\.)?linkedin\.com\/(in|company)\/[a-zA-Z0-9_-]{3,}/.test(s) ? 'ok' : 'Should be linkedin.com/in/username'
+}
+
+const HintRow = ({ msg, ok }) => msg == null ? null : (
+  <div style={{ fontSize: 11, marginTop: 4, color: ok ? 'var(--green)' : 'var(--coral)', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', gap: 4 }}>
+    {ok ? <Check size={10} strokeWidth={3} /> : <X size={10} strokeWidth={3} />} {msg === 'ok' ? 'Looks good' : msg}
+  </div>
+)
+
 const Field = ({ label, value, onChange }) => (
   <div style={{ marginBottom: 14 }}>
     <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 5 }}>{label}</div>
@@ -43,6 +68,59 @@ const Field = ({ label, value, onChange }) => (
     />
   </div>
 )
+
+const EmailField = ({ label = 'Email', value, onChange }) => {
+  const [touched, setTouched] = useState(false)
+  const result = touched ? validateEmail(value) : null
+  const borderColor = result === 'ok' ? 'var(--green)' : result ? 'var(--coral)' : 'var(--border)'
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 5 }}>{label}</div>
+      <input type="email" value={value} onChange={e => onChange(e.target.value)}
+        onBlur={() => setTouched(true)}
+        style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10, border: `1.5px solid ${borderColor}`, background: 'var(--elevated)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'var(--font-sans)', outline: 'none', transition: 'border-color 0.15s' }}
+        onFocus={e => { e.target.style.borderColor = 'var(--indigo)' }}
+      />
+      <HintRow msg={result} ok={result === 'ok'} />
+    </div>
+  )
+}
+
+const UrlField = ({ label = 'Website', value, onChange }) => {
+  const [touched, setTouched] = useState(false)
+  const result = touched ? validateUrl(value) : null
+  const borderColor = result === 'ok' ? 'var(--green)' : result ? 'var(--coral)' : 'var(--border)'
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 5 }}>{label}</div>
+      <input type="url" inputMode="url" value={value} onChange={e => onChange(e.target.value)}
+        placeholder="e.g. pplai.co"
+        onBlur={() => setTouched(true)}
+        style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10, border: `1.5px solid ${borderColor}`, background: 'var(--elevated)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'var(--font-sans)', outline: 'none', transition: 'border-color 0.15s' }}
+        onFocus={e => { e.target.style.borderColor = 'var(--indigo)' }}
+      />
+      <HintRow msg={result} ok={result === 'ok'} />
+    </div>
+  )
+}
+
+const LinkedinField = ({ value, onChange }) => {
+  const [touched, setTouched] = useState(false)
+  const result = touched ? validateLinkedin(value) : null
+  const borderColor = result === 'ok' ? 'var(--green)' : result ? 'var(--coral)' : 'var(--border)'
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 5 }}>LinkedIn</div>
+      <input value={value} onChange={e => onChange(e.target.value)}
+        placeholder="linkedin.com/in/username"
+        onBlur={() => setTouched(true)}
+        style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10, border: `1.5px solid ${borderColor}`, background: 'var(--elevated)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'var(--font-sans)', outline: 'none', transition: 'border-color 0.15s' }}
+        onFocus={e => { e.target.style.borderColor = 'var(--indigo)' }}
+      />
+      <HintRow msg={result} ok={result === 'ok'} />
+    </div>
+  )
+}
 
 const TextArea = ({ label, value, onChange }) => (
   <div style={{ marginBottom: 14 }}>
@@ -111,21 +189,33 @@ function parsePhone(fullVal) {
   return { country: COUNTRIES[0], local: fullVal }
 }
 
+// digits-only count from a local number string
+const digitCount = (s) => (s.replace(/\D/g, '')).length
+
 const PhoneField = ({ label = 'Phone number', value, onChange }) => {
   const [open, setOpen]       = useState(false)
   const [search, setSearch]   = useState('')
+  const [touched, setTouched] = useState(false)
   const [focused, setFocused] = useState(false)
   const { country, local }    = parsePhone(value)
   const dropRef               = useRef(null)
+
+  const digits  = digitCount(local)
+  // 7–15 digits covers all international subscriber numbers (ITU E.164)
+  const phoneOk = digits >= 7 && digits <= 15
+  const phoneHint = !touched || !local ? null : phoneOk ? 'ok' : digits < 7 ? 'Too short' : 'Too long (max 15 digits)'
 
   const filtered = search
     ? COUNTRIES.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || c.dial.includes(search))
     : COUNTRIES
 
   const select = (c) => { setOpen(false); setSearch(''); onChange(`${c.dial} ${local}`) }
-  const onLocalChange = (e) => onChange(`${country.dial} ${e.target.value}`)
+  const onLocalChange = (e) => {
+    // allow digits, spaces, hyphens, parentheses only
+    const cleaned = e.target.value.replace(/[^\d\s\-().]/g, '')
+    onChange(`${country.dial} ${cleaned}`)
+  }
 
-  // Close dropdown on outside click
   useEffect(() => {
     if (!open) return
     const handler = (e) => { if (dropRef.current && !dropRef.current.contains(e.target)) { setOpen(false); setSearch('') } }
@@ -133,13 +223,12 @@ const PhoneField = ({ label = 'Phone number', value, onChange }) => {
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
-  const borderColor = focused || open ? 'var(--indigo)' : 'var(--border)'
+  const borderColor = phoneHint === 'ok' ? 'var(--green)' : phoneHint ? 'var(--coral)' : (focused || open) ? 'var(--indigo)' : 'var(--border)'
 
   return (
     <div style={{ marginBottom: 14, position: 'relative' }} ref={dropRef}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 5 }}>{label}</div>
+      {label && <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 5 }}>{label}</div>}
       <div style={{ display: 'flex', alignItems: 'center', border: `1.5px solid ${borderColor}`, borderRadius: 10, background: 'var(--elevated)', overflow: 'hidden', transition: 'border-color 0.15s' }}>
-        {/* Dial-code button */}
         <button
           type="button"
           onClick={() => { setOpen(o => !o); setSearch('') }}
@@ -149,19 +238,27 @@ const PhoneField = ({ label = 'Phone number', value, onChange }) => {
           <span style={{ fontSize: 12, color: 'var(--text-secondary)', minWidth: 32 }}>{country.dial}</span>
           <ChevronDown size={11} color="var(--text-muted)" style={{ transition: 'transform 0.15s', transform: open ? 'rotate(180deg)' : 'none' }} />
         </button>
-        {/* Local number input */}
         <input
           type="tel"
           value={local}
           onChange={onLocalChange}
           placeholder="Phone number"
           onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onBlur={() => { setFocused(false); setTouched(true) }}
           style={{ flex: 1, padding: '10px 12px', border: 'none', background: 'transparent', fontSize: 13, fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', outline: 'none', minWidth: 0 }}
         />
+        {touched && local && (
+          <span style={{ paddingRight: 10, color: phoneOk ? 'var(--green)' : 'var(--coral)', flexShrink: 0 }}>
+            {phoneOk ? <Check size={13} strokeWidth={3} /> : <X size={13} strokeWidth={3} />}
+          </span>
+        )}
       </div>
+      {phoneHint && phoneHint !== 'ok' && (
+        <div style={{ fontSize: 11, marginTop: 4, color: 'var(--coral)', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <X size={10} strokeWidth={3} /> {phoneHint} · {digits} digit{digits !== 1 ? 's' : ''} entered
+        </div>
+      )}
 
-      {/* Dropdown */}
       {open && (
         <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--card)', border: '1.5px solid var(--border)', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.25)', zIndex: 200, marginTop: 4, overflow: 'hidden' }}>
           <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)' }}>
@@ -626,10 +723,10 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
 
               <div style={{ height:1, background:'var(--border)', margin:'4px 0 18px' }} />
               <div style={{ fontSize:11, fontWeight:700, color:'var(--text-secondary)', letterSpacing:0.5, textTransform:'uppercase', marginBottom:12 }}>Contact</div>
-              <Field label="Email" value={newCardDraft.email} onChange={setNC('email')} />
+              <EmailField value={newCardDraft.email} onChange={setNC('email')} />
               <PhoneField label="Phone number" value={newCardDraft.phone} onChange={setNC('phone')} />
-              <Field label="LinkedIn" value={newCardDraft.linkedin} onChange={setNC('linkedin')} />
-              <Field label="Website" value={newCardDraft.web} onChange={setNC('web')} />
+              <LinkedinField value={newCardDraft.linkedin} onChange={setNC('linkedin')} />
+              <UrlField value={newCardDraft.web} onChange={setNC('web')} />
 
               <div style={{ height:1, background:'var(--border)', margin:'4px 0 18px' }} />
               <div style={{ fontSize:11, fontWeight:700, color:'var(--text-secondary)', letterSpacing:0.5, textTransform:'uppercase', marginBottom:12 }}>Networking intent</div>
@@ -676,7 +773,7 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
             <div style={{ height:1, background:'var(--border)', margin:'4px 0 18px' }} />
 
             <div style={{ fontSize:11, fontWeight:700, color:'var(--text-secondary)', letterSpacing:0.5, textTransform:'uppercase', marginBottom:12 }}>Contact</div>
-            <Field label="Email" value={draft.email} onChange={set('email')} />
+            <EmailField value={draft.email} onChange={set('email')} />
             <PhoneField label="Phone number" value={draft.phone} onChange={val => { set('phone')(val); if (waSameAsPhone) setDraft(d => ({ ...d, phone: val, whatsapp: val })) }} />
             <div style={{ marginBottom:14 }}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:5 }}>
@@ -691,8 +788,8 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
                 : <PhoneField label="" value={draft.whatsapp} onChange={val => { setWaSameAsPhone(false); set('whatsapp')(val) }} />
               }
             </div>
-            <Field label="LinkedIn" value={draft.linkedin} onChange={set('linkedin')} />
-            <Field label="Website" value={draft.web} onChange={set('web')} />
+            <LinkedinField value={draft.linkedin} onChange={set('linkedin')} />
+            <UrlField value={draft.web} onChange={set('web')} />
             <div style={{ height:1, background:'var(--border)', margin:'4px 0 18px' }} />
 
             <div style={{ fontSize:11, fontWeight:700, color:'var(--text-secondary)', letterSpacing:0.5, textTransform:'uppercase', marginBottom:12 }}>Networking intent</div>
