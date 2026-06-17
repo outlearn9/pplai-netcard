@@ -1,7 +1,7 @@
 import { apiFetch } from '../lib/apiFetch'
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { Pencil, Mail, Phone, Send, Search, Gift, Copy, Globe, X, Check, Menu, AlertCircle, Plus, Camera } from 'lucide-react'
+import { Pencil, Mail, Phone, Send, Search, Gift, Copy, Globe, X, Check, Menu, AlertCircle, Plus, Camera, ChevronDown } from 'lucide-react'
 
 const FIELD_LABELS = {
   title:    'Job title',
@@ -54,6 +54,141 @@ const TextArea = ({ label, value, onChange }) => (
     />
   </div>
 )
+
+// ─── Country dial-code picker ────────────────────────────────────────────────
+const COUNTRIES = [
+  { code: 'US', flag: '🇺🇸', name: 'United States',    dial: '+1' },
+  { code: 'GB', flag: '🇬🇧', name: 'United Kingdom',   dial: '+44' },
+  { code: 'IN', flag: '🇮🇳', name: 'India',            dial: '+91' },
+  { code: 'CA', flag: '🇨🇦', name: 'Canada',           dial: '+1' },
+  { code: 'AU', flag: '🇦🇺', name: 'Australia',        dial: '+61' },
+  { code: 'DE', flag: '🇩🇪', name: 'Germany',          dial: '+49' },
+  { code: 'FR', flag: '🇫🇷', name: 'France',           dial: '+33' },
+  { code: 'SG', flag: '🇸🇬', name: 'Singapore',        dial: '+65' },
+  { code: 'AE', flag: '🇦🇪', name: 'UAE',              dial: '+971' },
+  { code: 'JP', flag: '🇯🇵', name: 'Japan',            dial: '+81' },
+  { code: 'CN', flag: '🇨🇳', name: 'China',            dial: '+86' },
+  { code: 'BR', flag: '🇧🇷', name: 'Brazil',           dial: '+55' },
+  { code: 'MX', flag: '🇲🇽', name: 'Mexico',           dial: '+52' },
+  { code: 'ZA', flag: '🇿🇦', name: 'South Africa',     dial: '+27' },
+  { code: 'NG', flag: '🇳🇬', name: 'Nigeria',          dial: '+234' },
+  { code: 'KE', flag: '🇰🇪', name: 'Kenya',            dial: '+254' },
+  { code: 'EG', flag: '🇪🇬', name: 'Egypt',            dial: '+20' },
+  { code: 'SA', flag: '🇸🇦', name: 'Saudi Arabia',     dial: '+966' },
+  { code: 'IL', flag: '🇮🇱', name: 'Israel',           dial: '+972' },
+  { code: 'TR', flag: '🇹🇷', name: 'Turkey',           dial: '+90' },
+  { code: 'ID', flag: '🇮🇩', name: 'Indonesia',        dial: '+62' },
+  { code: 'PH', flag: '🇵🇭', name: 'Philippines',      dial: '+63' },
+  { code: 'PK', flag: '🇵🇰', name: 'Pakistan',         dial: '+92' },
+  { code: 'BD', flag: '🇧🇩', name: 'Bangladesh',       dial: '+880' },
+  { code: 'NL', flag: '🇳🇱', name: 'Netherlands',      dial: '+31' },
+  { code: 'SE', flag: '🇸🇪', name: 'Sweden',           dial: '+46' },
+  { code: 'NO', flag: '🇳🇴', name: 'Norway',           dial: '+47' },
+  { code: 'CH', flag: '🇨🇭', name: 'Switzerland',      dial: '+41' },
+  { code: 'ES', flag: '🇪🇸', name: 'Spain',            dial: '+34' },
+  { code: 'IT', flag: '🇮🇹', name: 'Italy',            dial: '+39' },
+  { code: 'PT', flag: '🇵🇹', name: 'Portugal',         dial: '+351' },
+  { code: 'PL', flag: '🇵🇱', name: 'Poland',           dial: '+48' },
+  { code: 'RU', flag: '🇷🇺', name: 'Russia',           dial: '+7' },
+  { code: 'KR', flag: '🇰🇷', name: 'South Korea',      dial: '+82' },
+  { code: 'TH', flag: '🇹🇭', name: 'Thailand',         dial: '+66' },
+  { code: 'VN', flag: '🇻🇳', name: 'Vietnam',          dial: '+84' },
+  { code: 'MY', flag: '🇲🇾', name: 'Malaysia',         dial: '+60' },
+  { code: 'NZ', flag: '🇳🇿', name: 'New Zealand',      dial: '+64' },
+  { code: 'AR', flag: '🇦🇷', name: 'Argentina',        dial: '+54' },
+  { code: 'CO', flag: '🇨🇴', name: 'Colombia',         dial: '+57' },
+  { code: 'HK', flag: '🇭🇰', name: 'Hong Kong',        dial: '+852' },
+]
+
+// Parse an existing phone string into { country, local }
+function parsePhone(fullVal) {
+  if (!fullVal) return { country: COUNTRIES[0], local: '' }
+  const match = COUNTRIES
+    .slice() // longest dial codes first to avoid +1 matching +1xxx
+    .sort((a, b) => b.dial.length - a.dial.length)
+    .find(c => fullVal.startsWith(c.dial))
+  if (match) return { country: match, local: fullVal.slice(match.dial.length).trimStart() }
+  return { country: COUNTRIES[0], local: fullVal }
+}
+
+const PhoneField = ({ label = 'Phone number', value, onChange }) => {
+  const [open, setOpen]       = useState(false)
+  const [search, setSearch]   = useState('')
+  const [focused, setFocused] = useState(false)
+  const { country, local }    = parsePhone(value)
+  const dropRef               = useRef(null)
+
+  const filtered = search
+    ? COUNTRIES.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || c.dial.includes(search))
+    : COUNTRIES
+
+  const select = (c) => { setOpen(false); setSearch(''); onChange(`${c.dial} ${local}`) }
+  const onLocalChange = (e) => onChange(`${country.dial} ${e.target.value}`)
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => { if (dropRef.current && !dropRef.current.contains(e.target)) { setOpen(false); setSearch('') } }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const borderColor = focused || open ? 'var(--indigo)' : 'var(--border)'
+
+  return (
+    <div style={{ marginBottom: 14, position: 'relative' }} ref={dropRef}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 5 }}>{label}</div>
+      <div style={{ display: 'flex', alignItems: 'center', border: `1.5px solid ${borderColor}`, borderRadius: 10, background: 'var(--elevated)', overflow: 'hidden', transition: 'border-color 0.15s' }}>
+        {/* Dial-code button */}
+        <button
+          type="button"
+          onClick={() => { setOpen(o => !o); setSearch('') }}
+          style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '10px 8px 10px 12px', background: 'transparent', border: 'none', borderRight: `1px solid var(--border)`, cursor: 'pointer', flexShrink: 0, color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: 13 }}
+        >
+          <span style={{ fontSize: 16, lineHeight: 1 }}>{country.flag}</span>
+          <span style={{ fontSize: 12, color: 'var(--text-secondary)', minWidth: 32 }}>{country.dial}</span>
+          <ChevronDown size={11} color="var(--text-muted)" style={{ transition: 'transform 0.15s', transform: open ? 'rotate(180deg)' : 'none' }} />
+        </button>
+        {/* Local number input */}
+        <input
+          type="tel"
+          value={local}
+          onChange={onLocalChange}
+          placeholder="Phone number"
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={{ flex: 1, padding: '10px 12px', border: 'none', background: 'transparent', fontSize: 13, fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', outline: 'none', minWidth: 0 }}
+        />
+      </div>
+
+      {/* Dropdown */}
+      {open && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--card)', border: '1.5px solid var(--border)', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.25)', zIndex: 200, marginTop: 4, overflow: 'hidden' }}>
+          <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)' }}>
+            <input
+              autoFocus
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search country…"
+              style={{ width: '100%', boxSizing: 'border-box', padding: '7px 10px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--elevated)', fontSize: 13, fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', outline: 'none' }}
+            />
+          </div>
+          <div style={{ maxHeight: 180, overflowY: 'auto' }}>
+            {filtered.map(c => (
+              <button key={c.code} type="button" onClick={() => select(c)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 14px', background: c.code === country.code ? 'rgba(99,102,241,0.08)' : 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font-sans)' }}>
+                <span style={{ fontSize: 18, flexShrink: 0 }}>{c.flag}</span>
+                <span style={{ flex: 1, fontSize: 13, color: 'var(--text-primary)' }}>{c.name}</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>{c.dial}</span>
+              </button>
+            ))}
+            {filtered.length === 0 && <div style={{ padding: '12px 14px', fontSize: 13, color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>No results</div>}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // Avatar picker sub-component used inside sheets
 // ownAvatar: the card-specific override (empty = using fallback)
@@ -492,7 +627,7 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
               <div style={{ height:1, background:'var(--border)', margin:'4px 0 18px' }} />
               <div style={{ fontSize:11, fontWeight:700, color:'var(--text-secondary)', letterSpacing:0.5, textTransform:'uppercase', marginBottom:12 }}>Contact</div>
               <Field label="Email" value={newCardDraft.email} onChange={setNC('email')} />
-              <Field label="Phone" value={newCardDraft.phone} onChange={setNC('phone')} />
+              <PhoneField label="Phone number" value={newCardDraft.phone} onChange={setNC('phone')} />
               <Field label="LinkedIn" value={newCardDraft.linkedin} onChange={setNC('linkedin')} />
               <Field label="Website" value={newCardDraft.web} onChange={setNC('web')} />
 
@@ -542,7 +677,7 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
 
             <div style={{ fontSize:11, fontWeight:700, color:'var(--text-secondary)', letterSpacing:0.5, textTransform:'uppercase', marginBottom:12 }}>Contact</div>
             <Field label="Email" value={draft.email} onChange={set('email')} />
-            <Field label="Phone" value={draft.phone} onChange={val => { set('phone')(val); if (waSameAsPhone) setDraft(d => ({ ...d, phone: val, whatsapp: val })) }} />
+            <PhoneField label="Phone number" value={draft.phone} onChange={val => { set('phone')(val); if (waSameAsPhone) setDraft(d => ({ ...d, phone: val, whatsapp: val })) }} />
             <div style={{ marginBottom:14 }}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:5 }}>
                 <div style={{ fontSize:10, fontWeight:700, color:'var(--text-secondary)', letterSpacing:0.5, textTransform:'uppercase' }}>WhatsApp</div>
@@ -551,7 +686,10 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
                   <span style={{ fontSize:11, color:'var(--text-secondary)', fontFamily:'var(--font-sans)' }}>Same as phone</span>
                 </label>
               </div>
-              <input value={draft.whatsapp} onChange={e => { setWaSameAsPhone(false); set('whatsapp')(e.target.value) }} disabled={waSameAsPhone} style={{ width:'100%', boxSizing:'border-box', padding:'10px 12px', borderRadius:10, border:'1.5px solid var(--border)', background: waSameAsPhone ? 'var(--border)' : 'var(--elevated)', color: waSameAsPhone ? 'var(--text-secondary)' : 'var(--text-primary)', fontSize:13, fontFamily:'var(--font-sans)', outline:'none', opacity: waSameAsPhone ? 0.7 : 1 }} onFocus={e => { if (!waSameAsPhone) e.target.style.borderColor = 'var(--indigo)' }} onBlur={e => { e.target.style.borderColor = 'var(--border)' }} />
+              {waSameAsPhone
+                ? <div style={{ padding:'10px 12px', borderRadius:10, border:'1.5px solid var(--border)', background:'var(--border)', color:'var(--text-secondary)', fontSize:13, fontFamily:'var(--font-sans)', opacity:0.7 }}>{draft.whatsapp || '—'}</div>
+                : <PhoneField label="" value={draft.whatsapp} onChange={val => { setWaSameAsPhone(false); set('whatsapp')(val) }} />
+              }
             </div>
             <Field label="LinkedIn" value={draft.linkedin} onChange={set('linkedin')} />
             <Field label="Website" value={draft.web} onChange={set('web')} />
