@@ -654,7 +654,7 @@ export default function App() {
         unreadCount={unreadCount}
         isTablet={isTablet}
       >
-        <div key={nav.screen} className="screen-enter" style={{ position: 'absolute', inset: 0 }}>
+        <div key={nav.navKey} className="screen-enter" style={{ position: 'absolute', inset: 0 }}>
           <ErrorBoundary>
             {renderScreen(nav)}
           </ErrorBoundary>
@@ -672,7 +672,7 @@ export default function App() {
       }} />
 
       <div className="phone-shell" ref={setShellEl}>
-        <div key={nav.screen} className="screen-enter" style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
+        <div key={nav.navKey} className="screen-enter" style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
           <ErrorBoundary>
             {renderScreen(nav)}
           </ErrorBoundary>

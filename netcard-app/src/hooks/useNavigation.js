@@ -17,11 +17,13 @@ export function useNavigation(initial = 'home') {
   const [screenData, setScreenData] = useState(null)
   const [activeTab, setActiveTab]   = useState(initial)
   const [history, setHistory]       = useState([])
+  const [navKey, setNavKey]         = useState(0)
 
   function navigate(to, data = null) {
     setHistory(h => [...h, { screen, screenData }])
     setScreen(to)
     setScreenData(data)
+    setNavKey(k => k + 1)
     if (TAB_SCREENS.includes(to)) setActiveTab(to)
   }
 
@@ -40,6 +42,7 @@ export function useNavigation(initial = 'home') {
     screen,
     screenData,
     activeTab,
+    navKey,
     canGoBack: history.length > 0,
     showTabBar: TAB_SCREENS.includes(screen),
     navigate,
