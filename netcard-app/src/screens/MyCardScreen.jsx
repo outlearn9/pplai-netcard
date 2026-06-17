@@ -424,12 +424,12 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
         </div>
 
         {/* Card URL + Share — single compact row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'stretch', gap: 10 }}>
           {!editingUrl ? (
             <>
               <div
                 onClick={startEditUrl}
-                style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 9, padding: '11px 14px', borderRadius: 14, background: 'var(--card)', border: '1.5px solid var(--border)', cursor: 'pointer', minWidth: 0 }}
+                style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 9, padding: '0 14px', height: 46, borderRadius: 14, background: 'var(--card)', border: '1.5px solid var(--border)', cursor: 'pointer', minWidth: 0, boxSizing: 'border-box' }}
               >
                 <PPLIcon size={20} />
                 <span style={{ flex: 1, fontSize: 13, color: cardUrl ? 'var(--indigo)' : 'var(--text-muted)', fontFamily: 'var(--font-sans)', fontWeight: cardUrl ? 500 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -438,33 +438,36 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
                 {cardUrl && (
                   <button
                     onClick={e => { e.stopPropagation(); navigator.clipboard?.writeText(cardUrl).catch(() => {}); setCopied('cardUrl'); setTimeout(() => setCopied(null), 2000) }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 3, display: 'flex', color: copied === 'cardUrl' ? 'var(--green)' : 'var(--text-muted)', flexShrink: 0 }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 3, display: 'flex', alignItems: 'center', color: copied === 'cardUrl' ? 'var(--green)' : 'var(--text-muted)', flexShrink: 0 }}
                   >
                     {copied === 'cardUrl' ? <Check size={15} strokeWidth={2.5} /> : <Copy size={15} />}
                   </button>
                 )}
               </div>
-              <button className="btn-primary" onClick={() => navigate('shareCard')} style={{ borderRadius: 14, padding: '11px 20px', whiteSpace: 'nowrap', flexShrink: 0, fontSize: 14 }}>
-                <Send size={16} /> Share
+              <button
+                onClick={() => navigate('shareCard')}
+                style={{ display: 'flex', alignItems: 'center', gap: 7, height: 46, padding: '0 20px', borderRadius: 14, border: 'none', background: 'linear-gradient(135deg, var(--indigo), var(--indigo-dark, var(--indigo)))', color: '#fff', fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-sans)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, boxSizing: 'border-box' }}
+              >
+                <Send size={15} /> Share
               </button>
             </>
           ) : (
             <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', background: 'var(--card)', border: `1.5px solid ${urlStatus === 'available' ? 'var(--green)' : urlStatus === 'taken' || urlStatus === 'invalid' ? 'var(--coral)' : 'var(--border-strong)'}`, borderRadius: 14, overflow: 'hidden' }}>
-                <div style={{ padding: '0 0 0 12px', display: 'flex', alignItems: 'center' }}><PPLIcon size={18} /></div>
-                <span style={{ padding: '11px 6px 11px 8px', fontSize: 13, color: 'var(--text-muted)', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>pplai.app/u/</span>
+              <div style={{ display: 'flex', alignItems: 'center', height: 46, background: 'var(--card)', border: `1.5px solid ${urlStatus === 'available' ? 'var(--green)' : urlStatus === 'taken' || urlStatus === 'invalid' ? 'var(--coral)' : 'var(--border-strong)'}`, borderRadius: 14, overflow: 'hidden', boxSizing: 'border-box' }}>
+                <div style={{ padding: '0 0 0 12px', display: 'flex', alignItems: 'center', flexShrink: 0 }}><PPLIcon size={18} /></div>
+                <span style={{ padding: '0 4px 0 8px', fontSize: 13, color: 'var(--text-muted)', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>pplai.app/u/</span>
                 <input
                   autoFocus
                   value={urlDraft}
                   onChange={e => handleUrlDraftChange(e.target.value)}
                   placeholder="your-username"
-                  style={{ flex: 1, padding: '11px 6px', border: 'none', background: 'transparent', fontSize: 13, fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', outline: 'none', minWidth: 0 }}
+                  style={{ flex: 1, padding: '0 6px', height: '100%', border: 'none', background: 'transparent', fontSize: 13, fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', outline: 'none', minWidth: 0 }}
                 />
-                <button onClick={() => setEditingUrl(false)} style={{ padding: '0 10px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}><X size={14}/></button>
+                <button onClick={() => setEditingUrl(false)} style={{ padding: '0 10px', height: '100%', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', flexShrink: 0 }}><X size={14}/></button>
                 <button
                   onClick={saveUrl}
                   disabled={urlStatus !== 'available'}
-                  style={{ padding: '11px 16px', border: 'none', borderLeft: '1px solid var(--border)', background: urlStatus === 'available' ? 'var(--indigo)' : 'var(--elevated)', color: urlStatus === 'available' ? '#fff' : 'var(--text-muted)', fontSize: 13, fontWeight: 600, cursor: urlStatus === 'available' ? 'pointer' : 'default', fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap', flexShrink: 0 }}
+                  style={{ padding: '0 16px', height: '100%', border: 'none', borderLeft: '1px solid var(--border)', background: urlStatus === 'available' ? 'var(--indigo)' : 'var(--elevated)', color: urlStatus === 'available' ? '#fff' : 'var(--text-muted)', fontSize: 13, fontWeight: 600, cursor: urlStatus === 'available' ? 'pointer' : 'default', fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap', flexShrink: 0 }}
                 >
                   {urlStatus === 'checking' ? '…' : urlStatus === 'available' ? 'Save' : urlStatus === 'taken' ? 'Taken' : urlStatus === 'invalid' ? 'Invalid' : 'Save'}
                 </button>
