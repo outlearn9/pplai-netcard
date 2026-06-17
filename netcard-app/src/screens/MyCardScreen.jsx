@@ -91,9 +91,24 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
   const [editingUrl, setEditingUrl]     = useState(false)
   const [urlDraft, setUrlDraft]         = useState('')
   const [urlStatus, setUrlStatus]       = useState(null)
+  const [avatarUrl, setAvatarUrl]       = useState(() => { try { return localStorage.getItem('netcard_avatar') || '' } catch { return '' } })
   const urlCheckTimer                   = useRef(null)
+  const avatarInputRef                  = useRef(null)
   const portalRef = useRef(null)
   useEffect(() => { portalRef.current = document.querySelector('.phone-shell') || document.body }, [])
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result
+      if (typeof dataUrl !== 'string') return
+      setAvatarUrl(dataUrl)
+      try { localStorage.setItem('netcard_avatar', dataUrl) } catch {}
+    }
+    reader.readAsDataURL(file)
+  }
 
   // Fetch real profile from API on mount
   useEffect(() => {
@@ -330,11 +345,24 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
             <Pencil size={9} color="rgba(255,255,255,0.4)" />
           </button>
 
-          {/* Avatar */}
+          {/* Avatar — tap to change photo */}
           <div style={{ position: 'absolute', left: 20, top: 44 }}>
-            <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(99,102,241,0.6), rgba(168,85,247,0.6))', border: '1.5px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)' }}>
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 18, fontWeight: 700, color: '#fff', letterSpacing: -0.5 }}>{initials}</span>
-            </div>
+            <input ref={avatarInputRef} type="file" accept="image/*" onChange={handleAvatarChange} style={{ display:'none' }} />
+            <button onClick={() => avatarInputRef.current?.click()} style={{ width:56, height:56, borderRadius:'50%', padding:0, border:'1.5px solid rgba(255,255,255,0.2)', background:'linear-gradient(135deg, rgba(99,102,241,0.6), rgba(168,85,247,0.6))', cursor:'pointer', position:'relative', overflow:'hidden', backdropFilter:'blur(8px)' }}>
+              {avatarUrl
+                ? <img src={avatarUrl} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:'50%' }} />
+                : <span style={{ fontFamily:'var(--font-sans)', fontSize:18, fontWeight:700, color:'#fff', letterSpacing:-0.5 }}>{initials}</span>
+              }
+              {/* Camera overlay on hover/always subtle */}
+              <div style={{ position:'absolute', inset:0, borderRadius:'50%', background:'rgba(0,0,0,0.3)', display:'flex', alignItems:'center', justifyContent:'center', opacity: avatarUrl ? 0 : 0 }}>
+              </div>
+              <div style={{ position:'absolute', bottom:0, left:0, right:0, height:18, background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', borderRadius:'0 0 50px 50px' }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+              </div>
+            </button>
           </div>
 
           {/* Name & title — bottom left */}
@@ -496,6 +524,27 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
               <button onClick={cancelEdit} style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: 'var(--elevated)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
                 <X size={14} />
               </button>
+            </div>
+
+            {/* Photo */}
+            <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:20 }}>
+              <button onClick={() => avatarInputRef.current?.click()} style={{ width:60, height:60, borderRadius:'50%', padding:0, border:'2px solid var(--border)', background:'var(--elevated)', cursor:'pointer', position:'relative', overflow:'hidden', flexShrink:0 }}>
+                {avatarUrl
+                  ? <img src={avatarUrl} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                  : <span style={{ fontFamily:'var(--font-sans)', fontSize:20, fontWeight:700, color:'var(--text-secondary)' }}>{initials}</span>
+                }
+                <div style={{ position:'absolute', bottom:0, left:0, right:0, height:20, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                  </svg>
+                </div>
+              </button>
+              <div>
+                <div style={{ fontSize:13, fontWeight:600, color:'var(--text-primary)', fontFamily:'var(--font-sans)' }}>Profile photo</div>
+                <div style={{ fontSize:12, color:'var(--text-muted)', fontFamily:'var(--font-sans)', marginTop:2 }}>Tap to upload from camera roll</div>
+                {avatarUrl && <button onClick={() => { setAvatarUrl(''); try { localStorage.removeItem('netcard_avatar') } catch {} }} style={{ marginTop:4, fontSize:11, color:'var(--coral)', background:'none', border:'none', cursor:'pointer', padding:0, fontFamily:'var(--font-sans)' }}>Remove photo</button>}
+              </div>
             </div>
 
             {/* Identity */}
