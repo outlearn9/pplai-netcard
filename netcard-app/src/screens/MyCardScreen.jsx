@@ -189,8 +189,20 @@ function parsePhone(fullVal) {
   return { country: COUNTRIES[0], local: fullVal }
 }
 
-// digits-only count from a local number string
-const digitCount = (s) => (s.replace(/\D/g, '')).length
+// digits-only count from a string
+const digitCount = (s) => s.replace(/\D/g, '').length
+
+// Validate phone: total E.164 length = dial digits + local digits, must be 7–15
+// local alone must be 4–12 digits (shortest: some Pacific islands 4-digit locals)
+function validatePhone(dialCode, local) {
+  if (!local) return null
+  const localDigits = digitCount(local)
+  const dialDigits  = digitCount(dialCode)
+  const total       = dialDigits + localDigits
+  if (localDigits < 4)  return `Too short — ${localDigits} digit${localDigits !== 1 ? 's' : ''} entered`
+  if (total > 15)       return `Too long — ${localDigits} digits + ${dialDigits} country code = ${total} (max 15)`
+  return 'ok'
+}
 
 const PhoneField = ({ label = 'Phone number', value, onChange }) => {
   const [open, setOpen]       = useState(false)
@@ -200,10 +212,11 @@ const PhoneField = ({ label = 'Phone number', value, onChange }) => {
   const { country, local }    = parsePhone(value)
   const dropRef               = useRef(null)
 
-  const digits  = digitCount(local)
-  // 7–15 digits covers all international subscriber numbers (ITU E.164)
-  const phoneOk = digits >= 7 && digits <= 15
-  const phoneHint = !touched || !local ? null : phoneOk ? 'ok' : digits < 7 ? 'Too short' : 'Too long (max 15 digits)'
+  const phoneResult = validatePhone(country.dial, local)
+  // Show validation: after blur, OR if field has a value that's already invalid
+  const showHint    = local && (touched || phoneResult !== 'ok')
+  const phoneHint   = showHint ? phoneResult : null
+  const phoneOk     = phoneResult === 'ok'
 
   const filtered = search
     ? COUNTRIES.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || c.dial.includes(search))
@@ -211,7 +224,6 @@ const PhoneField = ({ label = 'Phone number', value, onChange }) => {
 
   const select = (c) => { setOpen(false); setSearch(''); onChange(`${c.dial} ${local}`) }
   const onLocalChange = (e) => {
-    // allow digits, spaces, hyphens, parentheses only
     const cleaned = e.target.value.replace(/[^\d\s\-().]/g, '')
     onChange(`${country.dial} ${cleaned}`)
   }
@@ -223,7 +235,7 @@ const PhoneField = ({ label = 'Phone number', value, onChange }) => {
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
-  const borderColor = phoneHint === 'ok' ? 'var(--green)' : phoneHint ? 'var(--coral)' : (focused || open) ? 'var(--indigo)' : 'var(--border)'
+  const borderColor = local ? (phoneOk ? 'var(--green)' : (showHint ? 'var(--coral)' : 'var(--border)')) : (focused || open) ? 'var(--indigo)' : 'var(--border)'
 
   return (
     <div style={{ marginBottom: 14, position: 'relative' }} ref={dropRef}>
@@ -247,15 +259,15 @@ const PhoneField = ({ label = 'Phone number', value, onChange }) => {
           onBlur={() => { setFocused(false); setTouched(true) }}
           style={{ flex: 1, padding: '10px 12px', border: 'none', background: 'transparent', fontSize: 13, fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', outline: 'none', minWidth: 0 }}
         />
-        {touched && local && (
-          <span style={{ paddingRight: 10, color: phoneOk ? 'var(--green)' : 'var(--coral)', flexShrink: 0 }}>
-            {phoneOk ? <Check size={13} strokeWidth={3} /> : <X size={13} strokeWidth={3} />}
+        {local && (
+          <span style={{ paddingRight: 10, color: phoneOk ? 'var(--green)' : (showHint ? 'var(--coral)' : 'var(--text-muted)'), flexShrink: 0 }}>
+            {phoneOk ? <Check size={13} strokeWidth={3} /> : (showHint ? <X size={13} strokeWidth={3} /> : null)}
           </span>
         )}
       </div>
       {phoneHint && phoneHint !== 'ok' && (
         <div style={{ fontSize: 11, marginTop: 4, color: 'var(--coral)', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', gap: 4 }}>
-          <X size={10} strokeWidth={3} /> {phoneHint} · {digits} digit{digits !== 1 ? 's' : ''} entered
+          <X size={10} strokeWidth={3} /> {phoneHint}
         </div>
       )}
 
@@ -366,8 +378,10 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
   const [editingUrl, setEditingUrl]     = useState(false)
   const [urlDraft, setUrlDraft]         = useState('')
   const [urlStatus, setUrlStatus]       = useState(null)
-  const [saveError, setSaveError]       = useState('')
-  const [saving, setSaving]             = useState(false)
+  const [saveError, setSaveError]         = useState('')
+  const [saving, setSaving]               = useState(false)
+  const [extraSaveError, setExtraSaveError] = useState('')
+  const [newCardSaveError, setNewCardSaveError] = useState('')
 
   // avatars: index 0 = primary, 1+ = extra cards (empty string = use primary photo)
   const [avatars, setAvatars]           = useState(() => {
@@ -457,11 +471,32 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
     else { const d = await r.json(); setUrlStatus(d?.error === 'Username already taken' ? 'taken' : 'invalid') }
   }
 
+  // Validate all contact fields in a card object; returns error string or null
+  const cardErrors = (card) => {
+    const errs = []
+    if (card.email && validateEmail(card.email) !== 'ok') errs.push('Invalid email')
+    if (card.phone) {
+      const { country, local } = parsePhone(card.phone)
+      const r = validatePhone(country.dial, local)
+      if (r && r !== 'ok') errs.push(`Phone: ${r}`)
+    }
+    if (card.whatsapp) {
+      const { country, local } = parsePhone(card.whatsapp)
+      const r = validatePhone(country.dial, local)
+      if (r && r !== 'ok') errs.push(`WhatsApp: ${r}`)
+    }
+    if (card.linkedin && validateLinkedin(card.linkedin) !== 'ok') errs.push('Invalid LinkedIn URL')
+    if (card.web && validateUrl(card.web) !== 'ok') errs.push('Invalid website URL')
+    return errs.length ? errs.join(' · ') : null
+  }
+
   // Primary card edit
   const set = (key) => (val) => setDraft(d => ({ ...d, [key]: val }))
   const openEdit = () => { setDraft({ ...profile }); setShowEdit(true) }
   const cancelEdit = () => setShowEdit(false)
   const saveEdit = async () => {
+    const err = cardErrors(draft)
+    if (err) { setSaveError(err); return }
     setSaving(true); setSaveError('')
     setProfile({ ...draft })
     try { localStorage.setItem(PROFILE_KEY, JSON.stringify(draft)) } catch {}
@@ -486,24 +521,27 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
   const setED = (key) => (val) => setExtraDraft(d => ({ ...d, [key]: val }))
   const saveEditExtra = () => {
     if (!extraDraft) return
+    const err = cardErrors(extraDraft)
+    if (err) { setExtraSaveError(err); return }
     const updated = extraCards.map((c, i) => i === activeIdx - 1 ? extraDraft : c)
     setExtraCards(updated); saveExtraCards(updated)
-    setShowEditExtra(false)
+    setExtraSaveError(''); setShowEditExtra(false)
   }
 
   // Extra card operations
-  const openAddCard = () => { setNewCardDraft(BLANK_CARD(profile)); setNewCardAvatar(''); setShowAddCard(true) }
+  const openAddCard = () => { setNewCardDraft(BLANK_CARD(profile)); setNewCardAvatar(''); setNewCardSaveError(''); setShowAddCard(true) }
   const setNC = (key) => (val) => setNewCardDraft(d => ({ ...d, [key]: val }))
   const saveNewCard = () => {
     if (!newCardDraft) return
+    const err = cardErrors(newCardDraft)
+    if (err) { setNewCardSaveError(err); return }
     const newIdx = extraCards.length + 1
     const updated = [...extraCards, newCardDraft]
     setExtraCards(updated); saveExtraCards(updated)
-    // save the avatar for this new card slot
     if (newCardAvatar) saveAvatar(newIdx, newCardAvatar)
     setAvatars(prev => { const next = [...prev]; next[newIdx] = newCardAvatar; return next })
     setActiveIdx(updated.length)
-    setShowAddCard(false)
+    setNewCardSaveError(''); setShowAddCard(false)
   }
   const deleteExtraCard = (idx) => {
     // shift avatars down when a card is removed
@@ -766,6 +804,7 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
               <TextArea label="Seeking" value={newCardDraft.seeking} onChange={setNC('seeking')} />
               <TextArea label="Offering" value={newCardDraft.offering} onChange={setNC('offering')} />
 
+              {newCardSaveError && <div style={{ fontSize:12, color:'var(--coral)', background:'rgba(232,90,79,0.08)', borderRadius:8, padding:'8px 12px', marginBottom:8, fontFamily:'var(--font-sans)' }}>{newCardSaveError}</div>}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr', gap:10, marginTop:8 }}>
                 <button onClick={() => setShowAddCard(false)} style={{ padding:'12px 0', borderRadius:12, border:'1px solid var(--border)', background:'transparent', color:'var(--text-secondary)', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'var(--font-sans)' }}>Cancel</button>
                 <button onClick={saveNewCard} style={{ padding:'12px 0', borderRadius:12, border:'none', background:'var(--indigo)', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'var(--font-sans)' }}>Save Card</button>
@@ -885,6 +924,7 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
               <TextArea label="Seeking" value={extraDraft.seeking} onChange={setED('seeking')} />
               <TextArea label="Offering" value={extraDraft.offering} onChange={setED('offering')} />
 
+              {extraSaveError && <div style={{ fontSize:12, color:'var(--coral)', background:'rgba(232,90,79,0.08)', borderRadius:8, padding:'8px 12px', marginBottom:8, fontFamily:'var(--font-sans)' }}>{extraSaveError}</div>}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr', gap:10, marginTop:8 }}>
                 <button onClick={() => setShowEditExtra(false)} style={{ padding:'12px 0', borderRadius:12, border:'1px solid var(--border)', background:'transparent', color:'var(--text-secondary)', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'var(--font-sans)' }}>Cancel</button>
                 <button onClick={saveEditExtra} style={{ padding:'12px 0', borderRadius:12, border:'none', background:'var(--indigo)', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'var(--font-sans)' }}>Save Changes</button>
