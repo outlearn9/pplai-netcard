@@ -328,16 +328,18 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
           {/* Subtle grid texture */}
           <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '24px 24px', pointerEvents: 'none' }} />
 
-          {/* Top strip — logo mark */}
+          {/* Top strip — logo mark + card URL */}
           <div style={{ position: 'absolute', top: 14, left: 20, display: 'flex', alignItems: 'center', gap: 7 }}>
-            <div style={{ width: 22, height: 22, borderRadius: 6, background: 'linear-gradient(135deg,#6366F1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 22, height: 22, borderRadius: 6, background: 'linear-gradient(135deg,#6366F1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                 <circle cx="4" cy="4" r="2.2" fill="white" opacity="0.9"/>
                 <circle cx="8.5" cy="4" r="2.2" fill="white" opacity="0.55"/>
                 <circle cx="6.5" cy="8.5" r="2.2" fill="white" opacity="0.72"/>
               </svg>
             </div>
-            <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: 1.2, textTransform: 'uppercase', fontFamily: 'var(--font-sans)' }}>NetCard</span>
+            <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.5)', letterSpacing: 0.4, fontFamily: 'var(--font-sans)' }}>
+              {cardUrl ? cardUrl.replace('https://', '') : 'pplai.app/u/—'}
+            </span>
           </div>
 
           {/* Avatar */}
