@@ -145,6 +145,13 @@ function ProfileDrawer({ open, onClose, navigate, onSignOut }) {
     }
   }, [open])
 
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+
   const activityLog = (() => {
     try { return JSON.parse(localStorage.getItem('netcard_sent_log') || '[]') } catch { return [] }
   })()

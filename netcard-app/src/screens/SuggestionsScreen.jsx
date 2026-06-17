@@ -218,8 +218,11 @@ export default function SuggestionsScreen({ navigate, goBack }) {
       {showAdd && (
         <>
           <div onClick={() => { setShowAdd(false); setAdded(false) }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 40 }} />
-          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'var(--bg)', borderRadius: '20px 20px 0 0', padding: '20px 20px 40px', zIndex: 50 }}>
-            <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)', margin: '0 auto 20px' }} />
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'var(--bg)', borderRadius: '20px 20px 0 0', padding: '16px 20px 40px', zIndex: 50 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', marginBottom: 20 }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)' }} />
+              <button onClick={() => { setShowAdd(false); setAdded(false) }} style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', background: 'var(--elevated)', border: 'none', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-secondary)' }}><X size={15} /></button>
+            </div>
             <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>New Suggestion</h3>
 
             <div style={{ marginBottom: 12 }}>
