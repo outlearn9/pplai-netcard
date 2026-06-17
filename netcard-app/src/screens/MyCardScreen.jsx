@@ -1,7 +1,7 @@
 import { apiFetch } from '../lib/apiFetch'
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { Pencil, Mail, Phone, Send, Search, Gift, Copy, Globe, X, Check, Menu, AlertCircle, Plus, Trash2 } from 'lucide-react'
+import { Pencil, Mail, Phone, Send, Search, Gift, Copy, Globe, X, Check, Menu, AlertCircle, Plus, Camera } from 'lucide-react'
 
 const FIELD_LABELS = {
   title:    'Job title',
@@ -55,8 +55,49 @@ const TextArea = ({ label, value, onChange }) => (
   </div>
 )
 
-const PROFILE_KEY    = 'netcard_my_profile'
-const EXTRA_KEY      = 'netcard_extra_cards'
+// Avatar picker sub-component used inside sheets
+// ownAvatar: the card-specific override (empty = using fallback)
+// displayUrl: what is actually shown (may be fallback primary)
+// isSecondary: show "Use own photo" vs "Remove photo" language
+const AvatarPicker = ({ ownAvatar, displayUrl, initials, onPick, onRemove, isSecondary }) => {
+  const ref = useRef(null)
+  const handleFile = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => { if (typeof ev.target?.result === 'string') onPick(ev.target.result) }
+    reader.readAsDataURL(file)
+  }
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+      <button onClick={() => ref.current?.click()} style={{ width: 64, height: 64, borderRadius: '50%', padding: 0, border: '2px solid var(--border)', background: 'var(--elevated)', cursor: 'pointer', position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
+        <input ref={ref} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} />
+        {displayUrl
+          ? <img src={displayUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : <span style={{ fontFamily: 'var(--font-sans)', fontSize: 22, fontWeight: 700, color: 'var(--text-secondary)' }}>{initials}</span>}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 22, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Camera size={11} color="white" />
+        </div>
+      </button>
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-sans)' }}>Profile photo</div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-sans)', marginTop: 2 }}>
+          {isSecondary && !ownAvatar ? 'Using primary card photo — tap to upload different' : 'Tap to upload from camera roll'}
+        </div>
+        {ownAvatar && (
+          <button onClick={onRemove} style={{ marginTop: 4, fontSize: 11, color: 'var(--coral)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font-sans)' }}>
+            {isSecondary ? 'Revert to primary photo' : 'Remove photo'}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const PROFILE_KEY = 'netcard_my_profile'
+const EXTRA_KEY   = 'netcard_extra_cards'
+// Avatar storage: index 0 = primary card, 1+ = extra cards
+const avatarKey   = (idx) => idx === 0 ? 'netcard_avatar' : `netcard_avatar_${idx}`
 
 function loadProfile() {
   try { return { ...INITIAL, ...JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}') } } catch { return INITIAL }
@@ -67,27 +108,43 @@ function loadExtraCards() {
 function saveExtraCards(cards) {
   try { localStorage.setItem(EXTRA_KEY, JSON.stringify(cards)) } catch {}
 }
+function loadAvatar(idx) {
+  try { return localStorage.getItem(avatarKey(idx)) || '' } catch { return '' }
+}
+function saveAvatar(idx, dataUrl) {
+  try {
+    if (dataUrl) localStorage.setItem(avatarKey(idx), dataUrl)
+    else localStorage.removeItem(avatarKey(idx))
+  } catch {}
+}
 
 export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = [], onFieldsFilled }) {
-  const [profile, setProfile]       = useState(loadProfile)
-  const [draft, setDraft]           = useState(loadProfile)
-  const [extraCards, setExtraCards] = useState(loadExtraCards)
-  const [activeIdx, setActiveIdx]   = useState(0) // 0 = primary
-  const [showEdit, setShowEdit]     = useState(false)
-  const [showAddCard, setShowAddCard] = useState(false)
+  const [profile, setProfile]           = useState(loadProfile)
+  const [draft, setDraft]               = useState(loadProfile)
+  const [extraCards, setExtraCards]     = useState(loadExtraCards)
+  const [activeIdx, setActiveIdx]       = useState(0) // 0 = primary
+  const [showEdit, setShowEdit]         = useState(false)
+  const [showAddCard, setShowAddCard]   = useState(false)
   const [newCardDraft, setNewCardDraft] = useState(null)
-  const [copied, setCopied]         = useState(null)
+  const [copied, setCopied]             = useState(null)
   const [waSameAsPhone, setWaSameAsPhone] = useState(() => { const p = loadProfile(); return p.whatsapp === p.phone })
-  const [username, setUsername]     = useState('')
-  const [editingUrl, setEditingUrl] = useState(false)
-  const [urlDraft, setUrlDraft]     = useState('')
-  const [urlStatus, setUrlStatus]   = useState(null)
-  const [avatarUrl, setAvatarUrl]   = useState(() => { try { return localStorage.getItem('netcard_avatar') || '' } catch { return '' } })
-  const [saveError, setSaveError]   = useState('')
-  const [saving, setSaving]         = useState(false)
-  const urlCheckTimer               = useRef(null)
-  const avatarInputRef              = useRef(null)
-  const portalRef                   = useRef(null)
+  const [username, setUsername]         = useState('')
+  const [editingUrl, setEditingUrl]     = useState(false)
+  const [urlDraft, setUrlDraft]         = useState('')
+  const [urlStatus, setUrlStatus]       = useState(null)
+  const [saveError, setSaveError]       = useState('')
+  const [saving, setSaving]             = useState(false)
+
+  // avatars: index 0 = primary, 1+ = extra cards (empty string = use primary photo)
+  const [avatars, setAvatars]           = useState(() => {
+    const primary = loadAvatar(0)
+    return [primary, ...loadExtraCards().map((_, i) => loadAvatar(i + 1))]
+  })
+  // draft avatar for new card being added
+  const [newCardAvatar, setNewCardAvatar] = useState('')
+
+  const urlCheckTimer = useRef(null)
+  const portalRef     = useRef(null)
 
   useEffect(() => { portalRef.current = document.querySelector('.phone-shell') || document.body }, [])
   useEffect(() => {
@@ -100,19 +157,6 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [showEdit, editingUrl, showAddCard])
-
-  const handleAvatarChange = (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      const dataUrl = ev.target?.result
-      if (typeof dataUrl !== 'string') return
-      setAvatarUrl(dataUrl)
-      try { localStorage.setItem('netcard_avatar', dataUrl) } catch {}
-    }
-    reader.readAsDataURL(file)
-  }
 
   useEffect(() => {
     apiFetch('/api/profile').then(r => r.ok ? r.json() : null).then(d => {
@@ -132,10 +176,25 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
     }).catch(() => {})
   }, [])
 
-  // The card currently being viewed
   const activeCard = activeIdx === 0 ? profile : extraCards[activeIdx - 1]
   const allCards   = [{ ...profile, label: 'Primary' }, ...extraCards]
   const cardUrl    = username ? `https://pplai.app/u/${username}` : ''
+  // Secondary cards fall back to the primary avatar when no card-specific photo is set
+  const primaryAvatar = avatars[0] || ''
+  const activeAvatar  = avatars[activeIdx] || primaryAvatar
+
+  const initials = (activeCard?.name || profile.name).split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+
+  // Per-card avatar helpers
+  const setCardAvatar = (idx, dataUrl) => {
+    saveAvatar(idx, dataUrl)
+    setAvatars(prev => {
+      const next = [...prev]
+      next[idx] = dataUrl
+      return next
+    })
+  }
+  const removeCardAvatar = (idx) => setCardAvatar(idx, '')
 
   // URL editing
   const startEditUrl = () => { setUrlDraft(username); setUrlStatus(null); setEditingUrl(true) }
@@ -181,16 +240,24 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
   }
 
   // Extra card operations
-  const openAddCard = () => { setNewCardDraft(BLANK_CARD(profile)); setShowAddCard(true) }
+  const openAddCard = () => { setNewCardDraft(BLANK_CARD(profile)); setNewCardAvatar(''); setShowAddCard(true) }
   const setNC = (key) => (val) => setNewCardDraft(d => ({ ...d, [key]: val }))
   const saveNewCard = () => {
     if (!newCardDraft) return
+    const newIdx = extraCards.length + 1
     const updated = [...extraCards, newCardDraft]
     setExtraCards(updated); saveExtraCards(updated)
-    setActiveIdx(updated.length) // switch to new card
+    // save the avatar for this new card slot
+    if (newCardAvatar) saveAvatar(newIdx, newCardAvatar)
+    setAvatars(prev => { const next = [...prev]; next[newIdx] = newCardAvatar; return next })
+    setActiveIdx(updated.length)
     setShowAddCard(false)
   }
-  const deleteExtraCard = (idx) => { // idx into extraCards array
+  const deleteExtraCard = (idx) => {
+    // shift avatars down when a card is removed
+    const newAvatars = avatars.filter((_, i) => i !== idx + 1)
+    newAvatars.forEach((url, i) => { if (i > 0) saveAvatar(i, url) })
+    setAvatars(newAvatars)
     const updated = extraCards.filter((_, i) => i !== idx)
     setExtraCards(updated); saveExtraCards(updated)
     setActiveIdx(0)
@@ -200,8 +267,6 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
     navigator.clipboard?.writeText(text).catch(() => {})
     setCopied(key); setTimeout(() => setCopied(null), 2000)
   }
-
-  const initials = (activeCard?.name || profile.name).split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 
   const contactRows = [
     { key: 'email',    icon: <Mail size={16} color="var(--indigo)" />,   text: activeCard?.email },
@@ -240,7 +305,7 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
           </div>
         </div>
 
-        {/* Card tabs — shown when multiple cards exist */}
+        {/* Card tabs */}
         {allCards.length > 1 && (
           <div style={{ display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none' }}>
             {allCards.map((card, i) => (
@@ -269,7 +334,8 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
         )}
 
         {/* Hero Card */}
-        <div style={{ borderRadius: 28, overflow: 'hidden', position: 'relative', height: 210, background: 'linear-gradient(145deg, #2D2F6B 0%, #3D3080 45%, #252560 100%)', boxShadow: '0 20px 60px rgba(45,47,107,0.45), 0 0 0 1px rgba(255,255,255,0.10)' }}>
+        <div style={{ borderRadius: 28, overflow: 'hidden', position: 'relative', height: 230, background: 'linear-gradient(145deg, #2D2F6B 0%, #3D3080 45%, #252560 100%)', boxShadow: '0 20px 60px rgba(45,47,107,0.45), 0 0 0 1px rgba(255,255,255,0.10)' }}>
+          {/* Glow blobs */}
           <div style={{ position: 'absolute', top: -40, left: -30, width: 200, height: 200, borderRadius: '50%', background: 'radial-gradient(circle, rgba(129,140,248,0.5) 0%, transparent 70%)', filter: 'blur(32px)', pointerEvents: 'none' }} />
           <div style={{ position: 'absolute', bottom: -50, right: 40, width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle, rgba(168,85,247,0.4) 0%, transparent 70%)', filter: 'blur(28px)', pointerEvents: 'none' }} />
           <div style={{ position: 'absolute', top: 20, right: -20, width: 140, height: 140, borderRadius: '50%', background: 'radial-gradient(circle, rgba(99,102,241,0.35) 0%, transparent 70%)', filter: 'blur(24px)', pointerEvents: 'none' }} />
@@ -293,32 +359,31 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
             </div>
           )}
 
-          {/* Avatar */}
-          <div style={{ position: 'absolute', left: 20, top: 44 }}>
-            <input ref={avatarInputRef} type="file" accept="image/*" onChange={handleAvatarChange} style={{ display:'none' }} />
-            <div style={{ width:56, height:56, borderRadius:'50%', border:'1.5px solid rgba(255,255,255,0.2)', background:'linear-gradient(135deg, rgba(99,102,241,0.6), rgba(168,85,247,0.6))', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', backdropFilter:'blur(8px)' }}>
-              {avatarUrl ? <img src={avatarUrl} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <span style={{ fontFamily:'var(--font-sans)', fontSize:18, fontWeight:700, color:'#fff', letterSpacing:-0.5 }}>{initials}</span>}
-            </div>
+          {/* Avatar — larger, vertically centred on left */}
+          <div style={{ position: 'absolute', left: 18, top: '50%', transform: 'translateY(-30%)', width: 80, height: 80, borderRadius: '50%', border: '2.5px solid rgba(255,255,255,0.25)', background: 'linear-gradient(135deg, rgba(99,102,241,0.6), rgba(168,85,247,0.6))', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backdropFilter: 'blur(8px)', boxShadow: '0 4px 20px rgba(0,0,0,0.35)' }}>
+            {activeAvatar
+              ? <img src={activeAvatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <span style={{ fontFamily: 'var(--font-sans)', fontSize: 26, fontWeight: 700, color: '#fff', letterSpacing: -0.5 }}>{initials}</span>}
           </div>
 
-          {/* Name & title */}
-          <div style={{ position: 'absolute', left: 20, bottom: 16 }}>
-            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 600, color: '#fff', letterSpacing: -0.6, lineHeight: 1.15, textShadow: '0 2px 12px rgba(0,0,0,0.4)' }}>{activeCard?.name}</div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,0.65)', marginTop: 3, fontFamily: 'var(--font-sans)' }}>{activeCard?.title}</div>
+          {/* Name & title — offset to not overlap avatar */}
+          <div style={{ position: 'absolute', left: 116, bottom: 18, right: 110 }}>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 600, color: '#fff', letterSpacing: -0.5, lineHeight: 1.15, textShadow: '0 2px 12px rgba(0,0,0,0.4)' }}>{activeCard?.name}</div>
+            <div style={{ fontSize: 11.5, fontWeight: 500, color: 'rgba(255,255,255,0.65)', marginTop: 3, fontFamily: 'var(--font-sans)' }}>{activeCard?.title}</div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', marginTop: 1, fontFamily: 'var(--font-sans)', letterSpacing: 0.2 }}>{activeCard?.company}</div>
           </div>
 
           {/* QR */}
-          <div style={{ position: 'absolute', right: 18, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7 }}>
-            <div style={{ background: 'rgba(255,255,255,0.97)', borderRadius: 14, padding: 10, boxShadow: '0 4px 24px rgba(0,0,0,0.3)' }}>
-              <svg width="90" height="90" viewBox="0 0 90 90" fill="none">
+          <div style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <div style={{ background: 'rgba(255,255,255,0.97)', borderRadius: 12, padding: 8, boxShadow: '0 4px 24px rgba(0,0,0,0.3)' }}>
+              <svg width="78" height="78" viewBox="0 0 90 90" fill="none">
                 <rect x="2" y="2" width="28" height="28" rx="4" fill="#2D2F6B"/><rect x="7" y="7" width="18" height="18" rx="2" fill="white"/><rect x="11" y="11" width="10" height="10" rx="1" fill="#2D2F6B"/>
                 <rect x="60" y="2" width="28" height="28" rx="4" fill="#2D2F6B"/><rect x="65" y="7" width="18" height="18" rx="2" fill="white"/><rect x="69" y="11" width="10" height="10" rx="1" fill="#2D2F6B"/>
                 <rect x="2" y="60" width="28" height="28" rx="4" fill="#2D2F6B"/><rect x="7" y="65" width="18" height="18" rx="2" fill="white"/><rect x="11" y="69" width="10" height="10" rx="1" fill="#2D2F6B"/>
                 {[36,42,48,54,60,66,72,78].flatMap((x,xi) => [36,42,48,54,60,66,72,78].map((y,yi) => (xi+yi)%2===0 && !(x<34&&y<34) && !(x>58&&y<34) && !(x<34&&y>58) ? <rect key={`${x}${y}`} x={x} y={y} width="5" height="5" rx="1" fill="#2D2F6B"/> : null))}
               </svg>
             </div>
-            <span style={{ fontSize: 8.5, color: 'rgba(255,255,255,0.5)', fontWeight: 600, letterSpacing: 0.5, fontFamily: 'var(--font-sans)', textTransform: 'uppercase' }}>Scan to connect</span>
+            <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.5)', fontWeight: 600, letterSpacing: 0.5, fontFamily: 'var(--font-sans)', textTransform: 'uppercase' }}>Scan</span>
           </div>
 
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, transparent, rgba(165,180,252,0.6), rgba(192,132,252,0.6), transparent)' }} />
@@ -406,6 +471,15 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
                 <button onClick={() => setShowAddCard(false)} style={{ width:28, height:28, borderRadius:'50%', border:'none', background:'var(--elevated)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-secondary)' }}><X size={14}/></button>
               </div>
 
+              <AvatarPicker
+                ownAvatar={newCardAvatar}
+                displayUrl={newCardAvatar || primaryAvatar}
+                initials={newCardDraft.name?.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() || '?'}
+                onPick={setNewCardAvatar}
+                onRemove={() => setNewCardAvatar('')}
+                isSecondary={true}
+              />
+
               <div style={{ fontSize:11, fontWeight:700, color:'var(--text-secondary)', letterSpacing:0.5, textTransform:'uppercase', marginBottom:12 }}>Card name</div>
               <Field label="Label (e.g. Investor, Personal)" value={newCardDraft.label} onChange={setNC('label')} />
 
@@ -437,7 +511,7 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
         portalRef.current
       )}
 
-      {/* Edit sheet portal */}
+      {/* Edit sheet portal (primary card only) */}
       {portalRef.current && createPortal(
         <>
           <div onClick={cancelEdit} style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.55)', zIndex:60, pointerEvents: showEdit ? 'auto' : 'none', opacity: showEdit ? 1 : 0, transition:'opacity 0.25s' }} />
@@ -451,20 +525,14 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
               <button onClick={cancelEdit} style={{ width:28, height:28, borderRadius:'50%', border:'none', background:'var(--elevated)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-secondary)' }}><X size={14}/></button>
             </div>
 
-            {/* Photo */}
-            <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:20 }}>
-              <button onClick={() => avatarInputRef.current?.click()} style={{ width:60, height:60, borderRadius:'50%', padding:0, border:'2px solid var(--border)', background:'var(--elevated)', cursor:'pointer', position:'relative', overflow:'hidden', flexShrink:0 }}>
-                {avatarUrl ? <img src={avatarUrl} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <span style={{ fontFamily:'var(--font-sans)', fontSize:20, fontWeight:700, color:'var(--text-secondary)' }}>{initials}</span>}
-                <div style={{ position:'absolute', bottom:0, left:0, right:0, height:20, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                </div>
-              </button>
-              <div>
-                <div style={{ fontSize:13, fontWeight:600, color:'var(--text-primary)', fontFamily:'var(--font-sans)' }}>Profile photo</div>
-                <div style={{ fontSize:12, color:'var(--text-muted)', fontFamily:'var(--font-sans)', marginTop:2 }}>Tap to upload from camera roll</div>
-                {avatarUrl && <button onClick={() => { setAvatarUrl(''); try { localStorage.removeItem('netcard_avatar') } catch {} }} style={{ marginTop:4, fontSize:11, color:'var(--coral)', background:'none', border:'none', cursor:'pointer', padding:0, fontFamily:'var(--font-sans)' }}>Remove photo</button>}
-              </div>
-            </div>
+            <AvatarPicker
+              ownAvatar={avatars[0] || ''}
+              displayUrl={avatars[0] || ''}
+              initials={profile.name?.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() || '?'}
+              onPick={(url) => setCardAvatar(0, url)}
+              onRemove={() => removeCardAvatar(0)}
+              isSecondary={false}
+            />
 
             <div style={{ fontSize:11, fontWeight:700, color:'var(--text-secondary)', letterSpacing:0.5, textTransform:'uppercase', marginBottom:12 }}>Identity</div>
             <Field label="Name" value={draft.name} onChange={set('name')} />
