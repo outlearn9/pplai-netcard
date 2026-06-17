@@ -11,7 +11,7 @@ export async function GET(_req: NextRequest) {
 
     const { data, error } = await supabaseAdmin
       .from('notifications')
-      .select('*')
+      .select('id, owner_id, type, title, body, action_nav, action_label, action_data, icon, icon_bg, read, created_at')
       .eq('owner_id', profile.id)
       .order('created_at', { ascending: false })
       .limit(50)
