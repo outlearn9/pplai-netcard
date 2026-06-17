@@ -3,20 +3,6 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Pencil, Mail, Phone, Send, Search, Gift, Copy, Globe, X, Check, Menu, AlertCircle } from 'lucide-react'
 
-const PPLIcon = ({ size = 18 }) => (
-  <svg width={size} height={size} viewBox="0 0 18 18" fill="none" style={{ flexShrink: 0, display: 'block' }}>
-    <defs>
-      <linearGradient id="ppl-grad" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#6366F1"/>
-        <stop offset="100%" stopColor="#a855f7"/>
-      </linearGradient>
-    </defs>
-    <rect width="18" height="18" rx="5" fill="url(#ppl-grad)"/>
-    <circle cx="6.5" cy="6.5" r="2.8" fill="white" opacity="0.9"/>
-    <circle cx="12" cy="6.5" r="2.8" fill="white" opacity="0.55"/>
-    <circle cx="9.5" cy="12" r="2.8" fill="white" opacity="0.72"/>
-  </svg>
-)
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -102,10 +88,6 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
     const p = loadProfile(); return p.whatsapp === p.phone
   })
   const [username, setUsername]         = useState('')
-  const [editingUrl, setEditingUrl]     = useState(false)
-  const [urlDraft, setUrlDraft]         = useState('')
-  const [urlStatus, setUrlStatus]       = useState(null) // null | 'checking' | 'available' | 'taken' | 'invalid' | 'saved'
-  const urlCheckTimer                   = useRef(null)
   const portalRef = useRef(null)
   useEffect(() => { portalRef.current = document.querySelector('.phone-shell') || document.body }, [])
 
@@ -139,45 +121,6 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
 
   const cardUrl = username ? `https://pplai.app/u/${username}` : ''
 
-  const startEditUrl = () => {
-    setUrlDraft(username)
-    setUrlStatus(null)
-    setEditingUrl(true)
-  }
-
-  const handleUrlDraftChange = (val) => {
-    const slug = val.toLowerCase().replace(/[^a-z0-9_-]/g, '')
-    setUrlDraft(slug)
-    setUrlStatus('checking')
-    clearTimeout(urlCheckTimer.current)
-    if (!slug || slug.length < 3) { setUrlStatus(slug.length ? 'invalid' : null); return }
-    urlCheckTimer.current = setTimeout(() => {
-      apiFetch(`/api/profile/username?check=${encodeURIComponent(slug)}`)
-        .then(r => r.json())
-        .then(d => {
-          if (d?.data?.yours) setUrlStatus('available')
-          else setUrlStatus(d?.data?.available ? 'available' : (d?.data?.reason ? 'invalid' : 'taken'))
-        })
-        .catch(() => setUrlStatus(null))
-    }, 400)
-  }
-
-  const saveUrl = async () => {
-    if (!urlDraft || urlStatus !== 'available') return
-    const r = await apiFetch('/api/profile/username', {
-      method: 'PATCH',
-      body: JSON.stringify({ username: urlDraft }),
-    })
-    if (r.ok) {
-      setUsername(urlDraft)
-      setEditingUrl(false)
-      setUrlStatus('saved')
-      setTimeout(() => setUrlStatus(null), 2000)
-    } else {
-      const d = await r.json()
-      setUrlStatus(d?.error === 'Username already taken' ? 'taken' : 'invalid')
-    }
-  }
 
   const set = (key) => (val) => setDraft(d => ({ ...d, [key]: val }))
 
@@ -425,65 +368,10 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
           ))}
         </div>
 
-        {/* Card URL + Share — single compact row */}
-        <div style={{ display: 'flex', alignItems: 'stretch', gap: 10 }}>
-          {!editingUrl ? (
-            <>
-              <div
-                onClick={startEditUrl}
-                style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 9, padding: '0 14px', height: 46, borderRadius: 14, background: 'var(--card)', border: '1.5px solid var(--border)', cursor: 'pointer', minWidth: 0, boxSizing: 'border-box' }}
-              >
-                <PPLIcon size={20} />
-                <span style={{ flex: 1, fontSize: 13, color: cardUrl ? 'var(--indigo)' : 'var(--text-muted)', fontFamily: 'var(--font-sans)', fontWeight: cardUrl ? 500 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {cardUrl ? cardUrl.replace('https://', '') : 'Set your card URL'}
-                </span>
-                {cardUrl && (
-                  <button
-                    onClick={e => { e.stopPropagation(); navigator.clipboard?.writeText(cardUrl).catch(() => {}); setCopied('cardUrl'); setTimeout(() => setCopied(null), 2000) }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 3, display: 'flex', alignItems: 'center', color: copied === 'cardUrl' ? 'var(--green)' : 'var(--text-muted)', flexShrink: 0 }}
-                  >
-                    {copied === 'cardUrl' ? <Check size={15} strokeWidth={2.5} /> : <Copy size={15} />}
-                  </button>
-                )}
-              </div>
-              <button
-                onClick={() => navigate('shareCard')}
-                style={{ display: 'flex', alignItems: 'center', gap: 7, height: 46, padding: '0 20px', borderRadius: 14, border: 'none', background: 'linear-gradient(135deg, var(--indigo), var(--indigo-dark, var(--indigo)))', color: '#fff', fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-sans)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, boxSizing: 'border-box' }}
-              >
-                <Send size={15} /> Share
-              </button>
-            </>
-          ) : (
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', height: 46, background: 'var(--card)', border: `1.5px solid ${urlStatus === 'available' ? 'var(--green)' : urlStatus === 'taken' || urlStatus === 'invalid' ? 'var(--coral)' : 'var(--border-strong)'}`, borderRadius: 14, overflow: 'hidden', boxSizing: 'border-box' }}>
-                <div style={{ padding: '0 0 0 12px', display: 'flex', alignItems: 'center', flexShrink: 0 }}><PPLIcon size={18} /></div>
-                <span style={{ padding: '0 4px 0 8px', fontSize: 13, color: 'var(--text-muted)', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>pplai.app/u/</span>
-                <input
-                  autoFocus
-                  value={urlDraft}
-                  onChange={e => handleUrlDraftChange(e.target.value)}
-                  placeholder="your-username"
-                  style={{ flex: 1, padding: '0 6px', height: '100%', border: 'none', background: 'transparent', fontSize: 13, fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', outline: 'none', minWidth: 0 }}
-                />
-                <button onClick={() => setEditingUrl(false)} style={{ padding: '0 10px', height: '100%', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', flexShrink: 0 }}><X size={14}/></button>
-                <button
-                  onClick={saveUrl}
-                  disabled={urlStatus !== 'available'}
-                  style={{ padding: '0 16px', height: '100%', border: 'none', borderLeft: '1px solid var(--border)', background: urlStatus === 'available' ? 'var(--indigo)' : 'var(--elevated)', color: urlStatus === 'available' ? '#fff' : 'var(--text-muted)', fontSize: 13, fontWeight: 600, cursor: urlStatus === 'available' ? 'pointer' : 'default', fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap', flexShrink: 0 }}
-                >
-                  {urlStatus === 'checking' ? '…' : urlStatus === 'available' ? 'Save' : urlStatus === 'taken' ? 'Taken' : urlStatus === 'invalid' ? 'Invalid' : 'Save'}
-                </button>
-              </div>
-              <div style={{ fontSize: 11, color: urlStatus === 'available' ? 'var(--green)' : urlStatus === 'taken' || urlStatus === 'invalid' ? 'var(--coral)' : 'var(--text-muted)', marginTop: 4, fontFamily: 'var(--font-sans)' }}>
-                {urlStatus === 'available' && '✓ Available'}
-                {urlStatus === 'taken' && '✗ Already taken'}
-                {urlStatus === 'invalid' && '✗ Min 3 chars: a–z, 0–9, - or _'}
-                {urlStatus === 'checking' && 'Checking…'}
-                {!urlStatus && 'Letters, numbers, - and _ only'}
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Share button */}
+        <button className="btn-primary" onClick={() => navigate('shareCard')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <Send size={16} /> Share My Card
+        </button>
       </div>
 
       {/* Edit sheet portal */}
