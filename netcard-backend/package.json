@@ -13,7 +13,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
     "@clerk/nextjs": "^6.9.0",
-    "@supabase/supabase-js": "^2.47.0",
+    "@supabase/supabase-js": "^2.105.3",
     "@types/bcryptjs": "^2.4.6",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.37.0",
