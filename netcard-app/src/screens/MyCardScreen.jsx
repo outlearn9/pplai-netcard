@@ -96,6 +96,15 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
   const avatarInputRef                  = useRef(null)
   const portalRef = useRef(null)
   useEffect(() => { portalRef.current = document.querySelector('.phone-shell') || document.body }, [])
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return
+      if (showEdit) { cancelEdit(); return }
+      if (editingUrl) { setEditingUrl(false); return }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [showEdit, editingUrl])
 
   const handleAvatarChange = (e) => {
     const file = e.target.files?.[0]
@@ -506,11 +515,11 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
             maxHeight: '85%', overflowY: 'auto',
           }}>
             {/* Handle */}
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px', position: 'sticky', top: 0, background: 'var(--card)', zIndex: 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px', position: 'sticky', top: 0, background: 'var(--card)', zIndex: 62 }}>
               <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)' }} />
             </div>
             {/* Sheet header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, paddingTop: 4, position: 'sticky', top: 20, background: 'var(--card)', zIndex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, paddingTop: 4, position: 'sticky', top: 20, background: 'var(--card)', zIndex: 62 }}>
               <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>Edit Card</span>
               <button onClick={cancelEdit} style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: 'var(--elevated)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
                 <X size={14} />
