@@ -357,6 +357,8 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
   const [activeIdx, setActiveIdx]       = useState(0) // 0 = primary
   const [showEdit, setShowEdit]         = useState(false)
   const [showAddCard, setShowAddCard]   = useState(false)
+  const [showEditExtra, setShowEditExtra] = useState(false)
+  const [extraDraft, setExtraDraft]     = useState(null)
   const [newCardDraft, setNewCardDraft] = useState(null)
   const [copied, setCopied]             = useState(null)
   const [waSameAsPhone, setWaSameAsPhone] = useState(() => { const p = loadProfile(); return p.whatsapp === p.phone })
@@ -383,12 +385,13 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
     const onKey = (e) => {
       if (e.key !== 'Escape') return
       if (showEdit) { cancelEdit(); return }
+      if (showEditExtra) { setShowEditExtra(false); return }
       if (editingUrl) { setEditingUrl(false); return }
       if (showAddCard) { setShowAddCard(false); return }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [showEdit, editingUrl, showAddCard])
+  }, [showEdit, showEditExtra, editingUrl, showAddCard])
 
   useEffect(() => {
     apiFetch('/api/profile').then(r => r.ok ? r.json() : null).then(d => {
@@ -471,6 +474,20 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
     }
   }
 
+  // Extra card edit (secondary/etc cards — localStorage only)
+  const openEditExtra = () => {
+    const card = extraCards[activeIdx - 1]
+    setExtraDraft({ ...card })
+    setShowEditExtra(true)
+  }
+  const setED = (key) => (val) => setExtraDraft(d => ({ ...d, [key]: val }))
+  const saveEditExtra = () => {
+    if (!extraDraft) return
+    const updated = extraCards.map((c, i) => i === activeIdx - 1 ? extraDraft : c)
+    setExtraCards(updated); saveExtraCards(updated)
+    setShowEditExtra(false)
+  }
+
   // Extra card operations
   const openAddCard = () => { setNewCardDraft(BLANK_CARD(profile)); setNewCardAvatar(''); setShowAddCard(true) }
   const setNC = (key) => (val) => setNewCardDraft(d => ({ ...d, [key]: val }))
@@ -526,11 +543,12 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
             <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 500, letterSpacing: -0.8, color: 'var(--text-primary)' }}>My Card</h1>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {activeIdx === 0 && (
-              <button onClick={openEdit} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--card)', border: 'none', borderRadius: 10, padding: '8px 14px', color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500 }}>
-                <Pencil size={13} /> Edit
-              </button>
-            )}
+            <button
+              onClick={activeIdx === 0 ? openEdit : openEditExtra}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--card)', border: 'none', borderRadius: 10, padding: '8px 14px', color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500 }}
+            >
+              <Pencil size={13} /> Edit
+            </button>
             <button onClick={openAddCard} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'var(--indigo)', border: 'none', borderRadius: 10, padding: '8px 12px', color: '#fff', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600 }}>
               <Plus size={13} /> Card
             </button>
@@ -803,6 +821,60 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
               <button onClick={saveEdit} disabled={saving} style={{ padding:'12px 0', borderRadius:12, border:'none', background: saving ? 'var(--border)' : 'var(--indigo)', color: saving ? 'var(--text-muted)' : '#fff', fontSize:13, fontWeight:600, cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'var(--font-sans)' }}>{saving ? 'Saving…' : 'Save Changes'}</button>
             </div>
           </>}
+          </div>
+        </>,
+        portalRef.current
+      )}
+
+      {/* Edit Extra Card sheet */}
+      {portalRef.current && createPortal(
+        <>
+          <div onClick={() => setShowEditExtra(false)} style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.55)', zIndex:60, pointerEvents: showEditExtra ? 'auto' : 'none', opacity: showEditExtra ? 1 : 0, transition:'opacity 0.2s' }} />
+          <div style={{ position:'absolute', bottom:0, left:0, right:0, background:'var(--card)', borderRadius:'22px 22px 0 0', padding:'0 20px 32px', zIndex:61, transform: showEditExtra ? 'translateY(0)' : 'translateY(100%)', transition:'transform 0.32s cubic-bezier(0.32,0.72,0,1)', boxShadow:'0 -6px 40px rgba(0,0,0,0.45)', maxHeight:'85%', overflowY: showEditExtra ? 'auto' : 'hidden' }}>
+            {showEditExtra && extraDraft && <>
+              <div style={{ display:'flex', justifyContent:'center', padding:'12px 0 4px', position:'sticky', top:0, background:'var(--card)', zIndex:62 }}>
+                <div style={{ width:36, height:4, borderRadius:2, background:'var(--border)' }} />
+              </div>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20, paddingTop:4, position:'sticky', top:20, background:'var(--card)', zIndex:62 }}>
+                <span style={{ fontSize:16, fontWeight:600, color:'var(--text-primary)' }}>Edit — {extraDraft.label || `Card ${activeIdx + 1}`}</span>
+                <button onClick={() => setShowEditExtra(false)} style={{ width:28, height:28, borderRadius:'50%', border:'none', background:'var(--elevated)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-secondary)' }}><X size={14}/></button>
+              </div>
+
+              <AvatarPicker
+                ownAvatar={avatars[activeIdx] || ''}
+                displayUrl={avatars[activeIdx] || primaryAvatar}
+                initials={extraDraft.name?.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() || '?'}
+                onPick={(url) => setCardAvatar(activeIdx, url)}
+                onRemove={() => removeCardAvatar(activeIdx)}
+                isSecondary={true}
+              />
+
+              <div style={{ fontSize:11, fontWeight:700, color:'var(--text-secondary)', letterSpacing:0.5, textTransform:'uppercase', marginBottom:12 }}>Card name</div>
+              <Field label="Label (e.g. Investor, Personal)" value={extraDraft.label} onChange={setED('label')} />
+
+              <div style={{ height:1, background:'var(--border)', margin:'4px 0 18px' }} />
+              <div style={{ fontSize:11, fontWeight:700, color:'var(--text-secondary)', letterSpacing:0.5, textTransform:'uppercase', marginBottom:12 }}>Identity</div>
+              <Field label="Name" value={extraDraft.name} onChange={setED('name')} />
+              <Field label="Title" value={extraDraft.title} onChange={setED('title')} />
+              <Field label="Company" value={extraDraft.company} onChange={setED('company')} />
+
+              <div style={{ height:1, background:'var(--border)', margin:'4px 0 18px' }} />
+              <div style={{ fontSize:11, fontWeight:700, color:'var(--text-secondary)', letterSpacing:0.5, textTransform:'uppercase', marginBottom:12 }}>Contact</div>
+              <EmailField value={extraDraft.email} onChange={setED('email')} />
+              <PhoneField label="Phone number" value={extraDraft.phone} onChange={setED('phone')} />
+              <LinkedinField value={extraDraft.linkedin} onChange={setED('linkedin')} />
+              <UrlField value={extraDraft.web} onChange={setED('web')} />
+
+              <div style={{ height:1, background:'var(--border)', margin:'4px 0 18px' }} />
+              <div style={{ fontSize:11, fontWeight:700, color:'var(--text-secondary)', letterSpacing:0.5, textTransform:'uppercase', marginBottom:12 }}>Networking intent</div>
+              <TextArea label="Seeking" value={extraDraft.seeking} onChange={setED('seeking')} />
+              <TextArea label="Offering" value={extraDraft.offering} onChange={setED('offering')} />
+
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr', gap:10, marginTop:8 }}>
+                <button onClick={() => setShowEditExtra(false)} style={{ padding:'12px 0', borderRadius:12, border:'1px solid var(--border)', background:'transparent', color:'var(--text-secondary)', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'var(--font-sans)' }}>Cancel</button>
+                <button onClick={saveEditExtra} style={{ padding:'12px 0', borderRadius:12, border:'none', background:'var(--indigo)', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'var(--font-sans)' }}>Save Changes</button>
+              </div>
+            </>}
           </div>
         </>,
         portalRef.current
