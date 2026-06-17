@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/apiFetch'
 import { useMemo, useState, useEffect } from 'react'
 import { ArrowLeft, TrendingUp, Loader } from 'lucide-react'
 import { readCache } from '../lib/syncQueue.js'
@@ -82,7 +83,7 @@ export default function AnalyticsScreen({ goBack }) {
   const [apiLoading, setApiLoading] = useState(true)
 
   useEffect(() => {
-    fetch(`${API}/api/analytics`, { credentials: 'include' })
+    apiFetch(`/api/analytics`, { credentials: 'include' })
       .then(r => r.json())
       .then(d => { if (d.success) setApiStats(d.data) })
       .catch(() => {})

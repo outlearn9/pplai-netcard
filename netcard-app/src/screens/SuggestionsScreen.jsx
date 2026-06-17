@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/apiFetch'
 import { useState, useMemo, useEffect } from 'react'
 import { ArrowLeft, Search, Plus, ChevronUp, ChevronDown, X, Check, Loader } from 'lucide-react'
 
@@ -39,7 +40,7 @@ export default function SuggestionsScreen({ navigate, goBack }) {
   const [added,    setAdded]    = useState(false)
 
   useEffect(() => {
-    fetch(`${API}/api/suggestions`, { credentials: 'include' })
+    apiFetch(`/api/suggestions`, { credentials: 'include' })
       .then(r => r.json())
       .then(d => { if (d.success) setItems(d.data) })
       .catch(() => {})
@@ -63,7 +64,7 @@ export default function SuggestionsScreen({ navigate, goBack }) {
     }))
 
     // Server update
-    const r = await fetch(`${API}/api/suggestions/${id}/vote`, {
+    const r = await apiFetch(`/api/suggestions/${id}/vote`, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ vote: newVote }),
@@ -82,7 +83,7 @@ export default function SuggestionsScreen({ navigate, goBack }) {
     if (!newBody.trim())  { setAddErr('Description is required'); return }
     setAdding(true); setAddErr('')
     try {
-      const r = await fetch(`${API}/api/suggestions`, {
+      const r = await apiFetch(`/api/suggestions`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: newTitle.trim(), body: newBody.trim(), category: newCat }),

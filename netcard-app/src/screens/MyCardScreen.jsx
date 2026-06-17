@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { apiFetch } from '../lib/apiFetch'
+import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Pencil, Mail, Phone, Send, Search, Gift, Copy, Globe, X, Check, Menu, AlertCircle } from 'lucide-react'
 
@@ -85,15 +86,127 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
   const [waSameAsPhone, setWaSameAsPhone] = useState(() => {
     const p = loadProfile(); return p.whatsapp === p.phone
   })
+  const [username, setUsername]         = useState('')
+  const [editingUrl, setEditingUrl]     = useState(false)
+  const [urlDraft, setUrlDraft]         = useState('')
+  const [urlStatus, setUrlStatus]       = useState(null) // null | 'checking' | 'available' | 'taken' | 'invalid' | 'saved'
+  const urlCheckTimer                   = useRef(null)
+  const portalRef = useRef(null)
+  useEffect(() => { portalRef.current = document.querySelector('.phone-shell') || document.body }, [])
+
+  // Fetch real profile from API on mount
+  useEffect(() => {
+    apiFetch('/api/profile')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d?.data) return
+        const p = d.data
+        const cached = loadProfile()
+        const merged = {
+          name:     p.name          || cached.name,
+          title:    p.role          || cached.title,
+          company:  p.company       || cached.company,
+          email:    p.email         || cached.email,
+          phone:    p.phone         || cached.phone,
+          whatsapp: p.whatsapp      || cached.whatsapp,
+          linkedin: p.linkedin_url  || cached.linkedin,
+          web:      p.web_url       || cached.web,
+          seeking:  p.seeking       || cached.seeking,
+          offering: p.offering      || cached.offering,
+        }
+        setProfile(merged)
+        setDraft(merged)
+        try { localStorage.setItem(PROFILE_KEY, JSON.stringify(merged)) } catch {}
+        if (p.username) setUsername(p.username)
+      })
+      .catch(() => {})
+  }, [])
+
+  const cardUrl = username ? `https://pplai.app/u/${username}` : ''
+
+  const startEditUrl = () => {
+    setUrlDraft(username)
+    setUrlStatus(null)
+    setEditingUrl(true)
+  }
+
+  const handleUrlDraftChange = (val) => {
+    const slug = val.toLowerCase().replace(/[^a-z0-9_-]/g, '')
+    setUrlDraft(slug)
+    setUrlStatus('checking')
+    clearTimeout(urlCheckTimer.current)
+    if (!slug || slug.length < 3) { setUrlStatus(slug.length ? 'invalid' : null); return }
+    urlCheckTimer.current = setTimeout(() => {
+      apiFetch(`/api/profile/username?check=${encodeURIComponent(slug)}`)
+        .then(r => r.json())
+        .then(d => {
+          if (d?.data?.yours) setUrlStatus('available')
+          else setUrlStatus(d?.data?.available ? 'available' : (d?.data?.reason ? 'invalid' : 'taken'))
+        })
+        .catch(() => setUrlStatus(null))
+    }, 400)
+  }
+
+  const saveUrl = async () => {
+    if (!urlDraft || urlStatus !== 'available') return
+    const r = await apiFetch('/api/profile/username', {
+      method: 'PATCH',
+      body: JSON.stringify({ username: urlDraft }),
+    })
+    if (r.ok) {
+      setUsername(urlDraft)
+      setEditingUrl(false)
+      setUrlStatus('saved')
+      setTimeout(() => setUrlStatus(null), 2000)
+    } else {
+      const d = await r.json()
+      setUrlStatus(d?.error === 'Username already taken' ? 'taken' : 'invalid')
+    }
+  }
 
   const set = (key) => (val) => setDraft(d => ({ ...d, [key]: val }))
 
   const openEdit = () => { setDraft({ ...profile }); setShowEdit(true) }
-  const saveEdit = () => {
+  const [saveError, setSaveError] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const saveEdit = async () => {
+    setSaving(true)
+    setSaveError('')
+    // Optimistically update local state
     setProfile({ ...draft })
     try { localStorage.setItem(PROFILE_KEY, JSON.stringify(draft)) } catch {}
+
+    try {
+      const r = await apiFetch('/api/profile', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name:         draft.name,
+          role:         draft.title,
+          company:      draft.company,
+          email:        draft.email,
+          phone:        draft.phone,
+          whatsapp:     draft.whatsapp,
+          linkedin_url: draft.linkedin,
+          website:      draft.web,
+          seeking:      draft.seeking,
+          offering:     draft.offering,
+        }),
+      })
+      const d = await r.json()
+      if (!r.ok || !d.success) {
+        setSaveError(d.error || 'Save failed — changes kept locally only')
+        setSaving(false)
+        return
+      }
+    } catch {
+      setSaveError('Network error — changes kept locally only')
+      setSaving(false)
+      return
+    }
+
+    setSaving(false)
     setShowEdit(false)
-    // Check if previously-missing fields are now filled and dismiss the banner
     if (onFieldsFilled && incompleteFields.length > 0) {
       const stillMissing = incompleteFields.filter(f => {
         const map = { title: 'title', company: 'company', phone: 'phone', linkedin: 'linkedin', seeking: 'seeking', offering: 'offering' }
@@ -101,23 +214,6 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
       })
       if (stillMissing.length === 0) onFieldsFilled()
     }
-    // Sync to backend — fire and forget, localStorage is source of truth for display
-    fetch(`${API}/api/profile`, {
-      method: 'PATCH', credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: draft.name,
-        role: draft.title,
-        company: draft.company,
-        email: draft.email,
-        phone: draft.phone,
-        whatsapp: draft.whatsapp,
-        linkedin_url: draft.linkedin,
-        website: draft.web,
-        seeking: draft.seeking,
-        offering: draft.offering,
-      }),
-    }).catch(() => {})
   }
   const cancelEdit = () => setShowEdit(false)
 
@@ -134,7 +230,7 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
     { key: 'whatsapp', icon: <WAIcon />,                                  text: profile.whatsapp },
     { key: 'linkedin', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="#0A66C2"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>, text: profile.linkedin },
     { key: 'web',      icon: <Globe size={16} color="var(--indigo)" />,   text: profile.web },
-  ]
+  ].filter(row => !!row.text?.trim())
 
   return (
     <div className="screen" style={{ position: 'relative', overflow: 'hidden' }}>
@@ -312,6 +408,70 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
           ))}
         </div>
 
+        {/* Card URL */}
+        <div style={{ background: 'var(--card)', borderRadius: 16, padding: '13px 16px' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>Your Card URL</div>
+
+          {!editingUrl ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{
+                flex: 1, padding: '9px 12px', borderRadius: 10,
+                background: 'var(--elevated)', border: '1.5px solid var(--border)',
+                fontSize: 13, color: cardUrl ? 'var(--indigo)' : 'var(--text-muted)',
+                fontFamily: 'var(--font-sans)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {cardUrl || 'pplai.app/u/your-username'}
+              </div>
+              {cardUrl && (
+                <button
+                  onClick={() => { navigator.clipboard?.writeText(cardUrl).catch(() => {}); setCopied('cardUrl'); setTimeout(() => setCopied(null), 2000) }}
+                  style={{ width: 36, height: 36, borderRadius: 10, border: 'none', background: copied === 'cardUrl' ? 'var(--green)' : 'var(--elevated)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.2s' }}
+                >
+                  {copied === 'cardUrl' ? <Check size={14} color="#fff" /> : <Copy size={14} color="var(--text-secondary)" />}
+                </button>
+              )}
+              <button
+                onClick={startEditUrl}
+                style={{ width: 36, height: 36, borderRadius: 10, border: 'none', background: 'var(--elevated)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+              >
+                <Pencil size={13} color="var(--text-secondary)" />
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 0, background: 'var(--elevated)', border: `1.5px solid ${urlStatus === 'available' ? 'var(--green)' : urlStatus === 'taken' || urlStatus === 'invalid' ? 'var(--coral)' : 'var(--border-strong)'}`, borderRadius: 10, overflow: 'hidden', transition: 'border-color 0.2s' }}>
+                <span style={{ padding: '10px 0 10px 12px', fontSize: 13, color: 'var(--text-muted)', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>pplai.app/u/</span>
+                <input
+                  autoFocus
+                  value={urlDraft}
+                  onChange={e => handleUrlDraftChange(e.target.value)}
+                  placeholder="your-username"
+                  style={{ flex: 1, padding: '10px 8px', border: 'none', background: 'transparent', fontSize: 13, fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', outline: 'none', minWidth: 0 }}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                <span style={{ fontSize: 12, color: urlStatus === 'available' ? 'var(--green)' : urlStatus === 'taken' ? 'var(--coral)' : urlStatus === 'invalid' ? 'var(--coral)' : urlStatus === 'checking' ? 'var(--text-muted)' : 'var(--text-muted)' }}>
+                  {urlStatus === 'available' && '✓ Available'}
+                  {urlStatus === 'taken' && '✗ Already taken'}
+                  {urlStatus === 'invalid' && '✗ Min 3 chars: a–z, 0–9, - or _'}
+                  {urlStatus === 'checking' && 'Checking…'}
+                  {!urlStatus && 'Letters, numbers, - and _ only'}
+                </span>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button onClick={() => setEditingUrl(false)} style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: 'var(--border)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Cancel</button>
+                  <button
+                    onClick={saveUrl}
+                    disabled={urlStatus !== 'available'}
+                    style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: urlStatus === 'available' ? 'var(--indigo)' : 'var(--border)', color: urlStatus === 'available' ? '#fff' : 'var(--text-muted)', fontSize: 12, fontWeight: 600, cursor: urlStatus === 'available' ? 'pointer' : 'default', fontFamily: 'var(--font-sans)', transition: 'all 0.15s' }}
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Share Button */}
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <button className="btn-primary" onClick={() => navigate('shareCard')} style={{ width: 'auto', borderRadius: 999, padding: '13px 36px' }}>
@@ -321,7 +481,7 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
       </div>
 
       {/* Edit sheet portal */}
-      {createPortal(
+      {portalRef.current && createPortal(
         <>
           {/* Backdrop */}
           <div
@@ -414,17 +574,22 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
             <TextArea label="Offering" value={draft.offering} onChange={set('offering')} />
 
             {/* Actions */}
+            {saveError && (
+              <div style={{ fontSize: 12, color: 'var(--coral)', background: 'rgba(232,90,79,0.08)', borderRadius: 8, padding: '8px 12px', marginTop: 8, fontFamily: 'var(--font-sans)' }}>
+                {saveError}
+              </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 10, marginTop: 8 }}>
-              <button onClick={cancelEdit} style={{ padding: '12px 0', borderRadius: 12, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+              <button onClick={cancelEdit} disabled={saving} style={{ padding: '12px 0', borderRadius: 12, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
                 Cancel
               </button>
-              <button onClick={saveEdit} style={{ padding: '12px 0', borderRadius: 12, border: 'none', background: 'var(--indigo)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
-                Save Changes
+              <button onClick={saveEdit} disabled={saving} style={{ padding: '12px 0', borderRadius: 12, border: 'none', background: saving ? 'var(--border)' : 'var(--indigo)', color: saving ? 'var(--text-muted)' : '#fff', fontSize: 13, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-sans)' }}>
+                {saving ? 'Saving…' : 'Save Changes'}
               </button>
             </div>
           </div>
         </>,
-        document.querySelector('.phone-shell')
+        portalRef.current
       )}
     </div>
   )

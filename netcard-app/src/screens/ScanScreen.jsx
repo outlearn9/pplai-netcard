@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/apiFetch'
 import { Zap, ChevronDown, QrCode, Image, Sparkles, ScanLine, UserPlus, ArrowLeft } from 'lucide-react'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { PLACE_TYPES } from './EventsScreen.jsx'
@@ -109,7 +110,7 @@ export default function ScanScreen({ navigate, screenData }) {
 
     let savedContact = null
     try {
-      const r = await fetch(`${API}/api/contacts/scan`, {
+      const r = await apiFetch(`/api/contacts/scan`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

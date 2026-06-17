@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/apiFetch'
 import { useState, useEffect } from 'react'
 import { ArrowLeft, Plus, Trash2, ChevronDown, Shield, Eye, Pencil, Check, Users, X, Loader } from 'lucide-react'
 
@@ -74,7 +75,7 @@ export default function MyTeamScreen({ navigate, goBack }) {
   const myEmail = profile.email || ''
 
   useEffect(() => {
-    fetch(`${API}/api/team`, { credentials: 'include' })
+    apiFetch(`/api/team`, { credentials: 'include' })
       .then(r => r.json())
       .then(d => { if (d.success) setMembers(d.data) })
       .catch(() => {})
@@ -86,7 +87,7 @@ export default function MyTeamScreen({ navigate, goBack }) {
     if (!input.trim() || !/\S+@\S+\.\S+/.test(input)) { setInputErr('Enter a valid email'); return }
     setSaving(true); setInputErr(''); setApiErr('')
     try {
-      const r = await fetch(`${API}/api/team`, {
+      const r = await apiFetch(`/api/team`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: nameInput.trim(), email: input.trim(), access: role }),
@@ -105,7 +106,7 @@ export default function MyTeamScreen({ navigate, goBack }) {
 
   const handleChangeAccess = async (id, access) => {
     setMembers(prev => prev.map(m => m.id === id ? { ...m, access } : m))
-    await fetch(`${API}/api/team/${id}`, {
+    await apiFetch(`/api/team/${id}`, {
       method: 'PATCH', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ access }),
@@ -114,7 +115,7 @@ export default function MyTeamScreen({ navigate, goBack }) {
 
   const handleRemove = async (id) => {
     setMembers(prev => prev.filter(m => m.id !== id))
-    await fetch(`${API}/api/team/${id}`, {
+    await apiFetch(`/api/team/${id}`, {
       method: 'DELETE', credentials: 'include',
     }).catch(() => {})
   }

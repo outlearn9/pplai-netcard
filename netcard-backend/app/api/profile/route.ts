@@ -12,14 +12,15 @@ const ProfileSchema = z.object({
   email:           z.string().email().optional(),
   phone:           z.string().optional(),
   whatsapp:        z.string().optional(),
-  linkedin_url:    z.string().url().optional().or(z.literal('')),
-  website:         z.string().optional(),   // stored as web_url in DB
+  linkedin_url:    z.string().optional(),
+  website:         z.string().optional(),
   avatar_initials: z.string().max(3).optional(),
   avatar_gradient: z.string().optional(),
   seeking:         z.string().optional(),
   offering:        z.string().optional(),
   city:            z.string().optional(),
   country:         z.string().optional(),
+  username:        z.string().regex(/^[a-z0-9_-]{3,30}$/, 'Username must be 3–30 chars: letters, numbers, - or _').optional(),
 })
 
 export async function GET() {

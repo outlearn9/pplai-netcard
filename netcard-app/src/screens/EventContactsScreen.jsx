@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/apiFetch'
 import { useState, useEffect, useRef } from 'react'
 import { ArrowLeft, Users, UserPlus, QrCode, BookUser, Link, Loader, MapPin, Calendar, Check, Bookmark, Phone, MessageCircle, ChevronRight } from 'lucide-react'
 import { PLACE_TYPES } from './EventsScreen.jsx'
@@ -99,7 +100,7 @@ export default function EventContactsScreen({ navigate, goBack, screenData }) {
       setLoading(false)
       return
     }
-    fetch(`${API}/api/contacts?event_id=${place.id}`, { credentials: 'include' })
+    apiFetch(`/api/contacts?event_id=${place.id}`, { credentials: 'include' })
       .then(r => r.json())
       .then(d => setContacts(d.success && Array.isArray(d.data) ? d.data.map(mapC) : []))
       .catch(() => setContacts([]))
@@ -123,7 +124,7 @@ export default function EventContactsScreen({ navigate, goBack, screenData }) {
     if (isActive) return
     setActivating(true)
     try {
-      await fetch(`${API}/api/events/${place.id}/activate`, { method: 'POST', credentials: 'include' })
+      await apiFetch(`/api/events/${place.id}/activate`, { method: 'POST', credentials: 'include' })
       localStorage.setItem('netcard_active_event', JSON.stringify({ ...place, is_active: true }))
     } finally {
       setActivating(false)
@@ -137,8 +138,8 @@ export default function EventContactsScreen({ navigate, goBack, screenData }) {
     const next = !contact.bookmarked
     setContacts(prev => prev.map(c => c.id === contactId ? { ...c, bookmarked: next } : c))
     if (!contactId.toString().startsWith('sc')) {
-      fetch(`${API}/api/contacts/${contactId}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      apiFetch(`/api/contacts/${contactId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         credentials: 'include', body: JSON.stringify({ bookmarked: next }),
       }).catch(() => {})
     }
@@ -153,7 +154,7 @@ export default function EventContactsScreen({ navigate, goBack, screenData }) {
       // Sample place IDs aren't real UUIDs — omit event_id so the backend uses the active event
       const isSample = place.id?.toString().startsWith('sample-')
       const body = { ...data, ...(isSample ? {} : { event_id: place.id }) }
-      const res = await fetch(`${API}/api/contacts`, {
+      const res = await apiFetch(`/api/contacts`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         credentials: 'include', body: JSON.stringify(body),
       })
@@ -171,7 +172,7 @@ export default function EventContactsScreen({ navigate, goBack, screenData }) {
     const reader = new FileReader()
     reader.onload = async (e) => {
       await ensureActive()
-      const res = await fetch(`${API}/api/contacts/scan`, {
+      const res = await apiFetch(`/api/contacts/scan`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         credentials: 'include', body: JSON.stringify({ raw_vcard: e.target.result }),
       })
