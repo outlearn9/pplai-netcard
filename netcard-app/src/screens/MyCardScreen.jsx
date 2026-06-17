@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Pencil, Mail, Phone, Send, Search, Gift, Copy, Globe, X, Check, Menu, AlertCircle } from 'lucide-react'
 
+
 const API = import.meta.env.VITE_API_URL || ''
 
 const FIELD_LABELS = {
@@ -89,10 +90,25 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
   const [username, setUsername]         = useState('')
   const [editingUrl, setEditingUrl]     = useState(false)
   const [urlDraft, setUrlDraft]         = useState('')
-  const [urlStatus, setUrlStatus]       = useState(null) // null | 'checking' | 'available' | 'taken' | 'invalid' | 'saved'
+  const [urlStatus, setUrlStatus]       = useState(null)
+  const [avatarUrl, setAvatarUrl]       = useState(() => { try { return localStorage.getItem('netcard_avatar') || '' } catch { return '' } })
   const urlCheckTimer                   = useRef(null)
+  const avatarInputRef                  = useRef(null)
   const portalRef = useRef(null)
   useEffect(() => { portalRef.current = document.querySelector('.phone-shell') || document.body }, [])
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result
+      if (typeof dataUrl !== 'string') return
+      setAvatarUrl(dataUrl)
+      try { localStorage.setItem('netcard_avatar', dataUrl) } catch {}
+    }
+    reader.readAsDataURL(file)
+  }
 
   // Fetch real profile from API on mount
   useEffect(() => {
@@ -133,9 +149,9 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
   const handleUrlDraftChange = (val) => {
     const slug = val.toLowerCase().replace(/[^a-z0-9_-]/g, '')
     setUrlDraft(slug)
-    setUrlStatus('checking')
     clearTimeout(urlCheckTimer.current)
     if (!slug || slug.length < 3) { setUrlStatus(slug.length ? 'invalid' : null); return }
+    setUrlStatus('checking')
     urlCheckTimer.current = setTimeout(() => {
       apiFetch(`/api/profile/username?check=${encodeURIComponent(slug)}`)
         .then(r => r.json())
@@ -156,8 +172,6 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
     if (r.ok) {
       setUsername(urlDraft)
       setEditingUrl(false)
-      setUrlStatus('saved')
-      setTimeout(() => setUrlStatus(null), 2000)
     } else {
       const d = await r.json()
       setUrlStatus(d?.error === 'Username already taken' ? 'taken' : 'invalid')
@@ -313,22 +327,32 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
           {/* Subtle grid texture */}
           <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '24px 24px', pointerEvents: 'none' }} />
 
-          {/* Top strip — logo mark */}
-          <div style={{ position: 'absolute', top: 14, left: 20, display: 'flex', alignItems: 'center', gap: 7 }}>
-            <div style={{ width: 22, height: 22, borderRadius: 6, background: 'linear-gradient(135deg,#6366F1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          {/* Top strip — logo mark + card URL (tap to edit) */}
+          <button
+            onClick={startEditUrl}
+            style={{ position: 'absolute', top: 10, left: 14, display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '4px 8px 4px 5px', cursor: 'pointer' }}
+          >
+            <div style={{ width: 20, height: 20, borderRadius: 5, background: 'linear-gradient(135deg,#6366F1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
                 <circle cx="4" cy="4" r="2.2" fill="white" opacity="0.9"/>
                 <circle cx="8.5" cy="4" r="2.2" fill="white" opacity="0.55"/>
                 <circle cx="6.5" cy="8.5" r="2.2" fill="white" opacity="0.72"/>
               </svg>
             </div>
-            <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: 1.2, textTransform: 'uppercase', fontFamily: 'var(--font-sans)' }}>NetCard</span>
-          </div>
+            <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.6)', letterSpacing: 0.3, fontFamily: 'var(--font-sans)' }}>
+              {cardUrl ? cardUrl.replace('https://', '') : 'Set card URL'}
+            </span>
+            <Pencil size={9} color="rgba(255,255,255,0.4)" />
+          </button>
 
           {/* Avatar */}
           <div style={{ position: 'absolute', left: 20, top: 44 }}>
-            <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(99,102,241,0.6), rgba(168,85,247,0.6))', border: '1.5px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)' }}>
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 18, fontWeight: 700, color: '#fff', letterSpacing: -0.5 }}>{initials}</span>
+            <input ref={avatarInputRef} type="file" accept="image/*" onChange={handleAvatarChange} style={{ display:'none' }} />
+            <div style={{ width:56, height:56, borderRadius:'50%', border:'1.5px solid rgba(255,255,255,0.2)', background:'linear-gradient(135deg, rgba(99,102,241,0.6), rgba(168,85,247,0.6))', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', backdropFilter:'blur(8px)' }}>
+              {avatarUrl
+                ? <img src={avatarUrl} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                : <span style={{ fontFamily:'var(--font-sans)', fontSize:18, fontWeight:700, color:'#fff', letterSpacing:-0.5 }}>{initials}</span>
+              }
             </div>
           </div>
 
@@ -408,77 +432,53 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
           ))}
         </div>
 
-        {/* Card URL */}
-        <div style={{ background: 'var(--card)', borderRadius: 16, padding: '13px 16px' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>Your Card URL</div>
-
-          {!editingUrl ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{
-                flex: 1, padding: '9px 12px', borderRadius: 10,
-                background: 'var(--elevated)', border: '1.5px solid var(--border)',
-                fontSize: 13, color: cardUrl ? 'var(--indigo)' : 'var(--text-muted)',
-                fontFamily: 'var(--font-sans)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                {cardUrl || 'pplai.app/u/your-username'}
-              </div>
-              {cardUrl && (
-                <button
-                  onClick={() => { navigator.clipboard?.writeText(cardUrl).catch(() => {}); setCopied('cardUrl'); setTimeout(() => setCopied(null), 2000) }}
-                  style={{ width: 36, height: 36, borderRadius: 10, border: 'none', background: copied === 'cardUrl' ? 'var(--green)' : 'var(--elevated)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.2s' }}
-                >
-                  {copied === 'cardUrl' ? <Check size={14} color="#fff" /> : <Copy size={14} color="var(--text-secondary)" />}
-                </button>
-              )}
-              <button
-                onClick={startEditUrl}
-                style={{ width: 36, height: 36, borderRadius: 10, border: 'none', background: 'var(--elevated)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-              >
-                <Pencil size={13} color="var(--text-secondary)" />
-              </button>
-            </div>
-          ) : (
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 0, background: 'var(--elevated)', border: `1.5px solid ${urlStatus === 'available' ? 'var(--green)' : urlStatus === 'taken' || urlStatus === 'invalid' ? 'var(--coral)' : 'var(--border-strong)'}`, borderRadius: 10, overflow: 'hidden', transition: 'border-color 0.2s' }}>
-                <span style={{ padding: '10px 0 10px 12px', fontSize: 13, color: 'var(--text-muted)', whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>pplai.app/u/</span>
-                <input
-                  autoFocus
-                  value={urlDraft}
-                  onChange={e => handleUrlDraftChange(e.target.value)}
-                  placeholder="your-username"
-                  style={{ flex: 1, padding: '10px 8px', border: 'none', background: 'transparent', fontSize: 13, fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', outline: 'none', minWidth: 0 }}
-                />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-                <span style={{ fontSize: 12, color: urlStatus === 'available' ? 'var(--green)' : urlStatus === 'taken' ? 'var(--coral)' : urlStatus === 'invalid' ? 'var(--coral)' : urlStatus === 'checking' ? 'var(--text-muted)' : 'var(--text-muted)' }}>
-                  {urlStatus === 'available' && '✓ Available'}
-                  {urlStatus === 'taken' && '✗ Already taken'}
-                  {urlStatus === 'invalid' && '✗ Min 3 chars: a–z, 0–9, - or _'}
-                  {urlStatus === 'checking' && 'Checking…'}
-                  {!urlStatus && 'Letters, numbers, - and _ only'}
-                </span>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button onClick={() => setEditingUrl(false)} style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: 'var(--border)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Cancel</button>
-                  <button
-                    onClick={saveUrl}
-                    disabled={urlStatus !== 'available'}
-                    style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: urlStatus === 'available' ? 'var(--indigo)' : 'var(--border)', color: urlStatus === 'available' ? '#fff' : 'var(--text-muted)', fontSize: 12, fontWeight: 600, cursor: urlStatus === 'available' ? 'pointer' : 'default', fontFamily: 'var(--font-sans)', transition: 'all 0.15s' }}
-                  >
-                    Save
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Share Button */}
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <button className="btn-primary" onClick={() => navigate('shareCard')} style={{ width: 'auto', borderRadius: 999, padding: '13px 36px' }}>
-            <Send size={18} /> Share My Card
-          </button>
-        </div>
+        {/* Share button */}
+        <button className="btn-primary" onClick={() => navigate('shareCard')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <Send size={16} /> Share My Card
+        </button>
       </div>
+
+      {/* URL edit sheet */}
+      {portalRef.current && createPortal(
+        <>
+          <div
+            onClick={() => setEditingUrl(false)}
+            style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.55)', zIndex:60, pointerEvents: editingUrl ? 'auto' : 'none', opacity: editingUrl ? 1 : 0, transition:'opacity 0.2s' }}
+          />
+          <div style={{ position:'absolute', bottom:0, left:0, right:0, background:'var(--card)', borderRadius:'22px 22px 0 0', padding:'20px 20px 36px', zIndex:61, transform: editingUrl ? 'translateY(0)' : 'translateY(100%)', transition:'transform 0.28s cubic-bezier(0.32,0.72,0,1)', boxShadow:'0 -6px 40px rgba(0,0,0,0.45)' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
+              <span style={{ fontSize:15, fontWeight:600, color:'var(--text-primary)', fontFamily:'var(--font-sans)' }}>Your card URL</span>
+              <button onClick={() => setEditingUrl(false)} style={{ width:28, height:28, borderRadius:'50%', border:'none', background:'var(--elevated)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-secondary)' }}><X size={14}/></button>
+            </div>
+            <div style={{ display:'flex', alignItems:'center', background:'var(--elevated)', border:`1.5px solid ${urlStatus==='available' ? 'var(--green)' : urlStatus==='taken'||urlStatus==='invalid' ? 'var(--coral)' : 'var(--border)'}`, borderRadius:12, overflow:'hidden', height:46 }}>
+              <span style={{ padding:'0 4px 0 14px', fontSize:13, color:'var(--text-muted)', whiteSpace:'nowrap', fontFamily:'var(--font-sans)' }}>pplai.app/u/</span>
+              <input
+                autoFocus
+                value={urlDraft}
+                onChange={e => handleUrlDraftChange(e.target.value)}
+                placeholder="your-username"
+                style={{ flex:1, padding:'0 8px', height:'100%', border:'none', background:'transparent', fontSize:14, fontFamily:'var(--font-sans)', color:'var(--text-primary)', outline:'none', minWidth:0 }}
+              />
+            </div>
+            <div style={{ fontSize:11, color: urlStatus==='available' ? 'var(--green)' : urlStatus==='taken'||urlStatus==='invalid' ? 'var(--coral)' : 'var(--text-muted)', marginTop:6, fontFamily:'var(--font-sans)', minHeight:16 }}>
+              {urlStatus==='available' && '✓ Available'}
+              {urlStatus==='taken' && '✗ Already taken'}
+              {urlStatus==='invalid' && '✗ Min 3 chars: a–z, 0–9, - or _'}
+              {urlStatus==='checking' && 'Checking…'}
+              {!urlStatus && 'Letters, numbers, - and _ only'}
+            </div>
+            <button
+              onClick={saveUrl}
+              disabled={urlStatus !== 'available'}
+              className="btn-primary"
+              style={{ marginTop:14, display:'flex', alignItems:'center', justifyContent:'center', gap:6, opacity: urlStatus==='available' ? 1 : 0.4 }}
+            >
+              <Check size={15}/> Save URL
+            </button>
+          </div>
+        </>,
+        portalRef.current
+      )}
 
       {/* Edit sheet portal */}
       {portalRef.current && createPortal(
@@ -515,6 +515,27 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
               <button onClick={cancelEdit} style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: 'var(--elevated)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
                 <X size={14} />
               </button>
+            </div>
+
+            {/* Photo */}
+            <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:20 }}>
+              <button onClick={() => avatarInputRef.current?.click()} style={{ width:60, height:60, borderRadius:'50%', padding:0, border:'2px solid var(--border)', background:'var(--elevated)', cursor:'pointer', position:'relative', overflow:'hidden', flexShrink:0 }}>
+                {avatarUrl
+                  ? <img src={avatarUrl} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                  : <span style={{ fontFamily:'var(--font-sans)', fontSize:20, fontWeight:700, color:'var(--text-secondary)' }}>{initials}</span>
+                }
+                <div style={{ position:'absolute', bottom:0, left:0, right:0, height:20, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                  </svg>
+                </div>
+              </button>
+              <div>
+                <div style={{ fontSize:13, fontWeight:600, color:'var(--text-primary)', fontFamily:'var(--font-sans)' }}>Profile photo</div>
+                <div style={{ fontSize:12, color:'var(--text-muted)', fontFamily:'var(--font-sans)', marginTop:2 }}>Tap to upload from camera roll</div>
+                {avatarUrl && <button onClick={() => { setAvatarUrl(''); try { localStorage.removeItem('netcard_avatar') } catch {} }} style={{ marginTop:4, fontSize:11, color:'var(--coral)', background:'none', border:'none', cursor:'pointer', padding:0, fontFamily:'var(--font-sans)' }}>Remove photo</button>}
+              </div>
             </div>
 
             {/* Identity */}
