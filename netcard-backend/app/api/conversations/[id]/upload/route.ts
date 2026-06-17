@@ -5,20 +5,14 @@ import { ok, err, handleError } from '@/lib/response'
 
 async function getConversationForUser(conversationId: string, profileId: string) {
   const { data, error } = await supabaseAdmin
-    .from('conversations').select('*').eq('id', conversationId).single()
+    .from('conversations')
+    .select('id, participant_a, participant_b, unread_a, unread_b')
+    .eq('id', conversationId).single()
   if (error) throw error
   if (!data || (data.participant_a !== profileId && data.participant_b !== profileId)) return null
   return data
 }
 
-/**
- * POST Handler for /api/conversations/[id]/upload
- * 
- * @param {NextRequest} req - Multipart form data containing the file asset.
- * @param {Object} context - Dynamic route params (conversation UUID).
- * @returns {Promise<NextResponse>} 201 Created with the file message metadata.
- * @description Securely uploads a file attachment to Supabase Storage and records a file-type message in the thread.
- */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const profile = await getProfile()
