@@ -88,6 +88,10 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
     const p = loadProfile(); return p.whatsapp === p.phone
   })
   const [username, setUsername]         = useState('')
+  const [editingUrl, setEditingUrl]     = useState(false)
+  const [urlDraft, setUrlDraft]         = useState('')
+  const [urlStatus, setUrlStatus]       = useState(null)
+  const urlCheckTimer                   = useRef(null)
   const portalRef = useRef(null)
   useEffect(() => { portalRef.current = document.querySelector('.phone-shell') || document.body }, [])
 
@@ -121,6 +125,43 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
 
   const cardUrl = username ? `https://pplai.app/u/${username}` : ''
 
+  const startEditUrl = () => {
+    setUrlDraft(username)
+    setUrlStatus(null)
+    setEditingUrl(true)
+  }
+
+  const handleUrlDraftChange = (val) => {
+    const slug = val.toLowerCase().replace(/[^a-z0-9_-]/g, '')
+    setUrlDraft(slug)
+    clearTimeout(urlCheckTimer.current)
+    if (!slug || slug.length < 3) { setUrlStatus(slug.length ? 'invalid' : null); return }
+    setUrlStatus('checking')
+    urlCheckTimer.current = setTimeout(() => {
+      apiFetch(`/api/profile/username?check=${encodeURIComponent(slug)}`)
+        .then(r => r.json())
+        .then(d => {
+          if (d?.data?.yours) setUrlStatus('available')
+          else setUrlStatus(d?.data?.available ? 'available' : (d?.data?.reason ? 'invalid' : 'taken'))
+        })
+        .catch(() => setUrlStatus(null))
+    }, 400)
+  }
+
+  const saveUrl = async () => {
+    if (!urlDraft || urlStatus !== 'available') return
+    const r = await apiFetch('/api/profile/username', {
+      method: 'PATCH',
+      body: JSON.stringify({ username: urlDraft }),
+    })
+    if (r.ok) {
+      setUsername(urlDraft)
+      setEditingUrl(false)
+    } else {
+      const d = await r.json()
+      setUrlStatus(d?.error === 'Username already taken' ? 'taken' : 'invalid')
+    }
+  }
 
   const set = (key) => (val) => setDraft(d => ({ ...d, [key]: val }))
 
@@ -271,19 +312,23 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
           {/* Subtle grid texture */}
           <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '24px 24px', pointerEvents: 'none' }} />
 
-          {/* Top strip — logo mark + card URL */}
-          <div style={{ position: 'absolute', top: 14, left: 20, display: 'flex', alignItems: 'center', gap: 7 }}>
-            <div style={{ width: 22, height: 22, borderRadius: 6, background: 'linear-gradient(135deg,#6366F1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          {/* Top strip — logo mark + card URL (tap to edit) */}
+          <button
+            onClick={startEditUrl}
+            style={{ position: 'absolute', top: 10, left: 14, display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '4px 8px 4px 5px', cursor: 'pointer' }}
+          >
+            <div style={{ width: 20, height: 20, borderRadius: 5, background: 'linear-gradient(135deg,#6366F1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
                 <circle cx="4" cy="4" r="2.2" fill="white" opacity="0.9"/>
                 <circle cx="8.5" cy="4" r="2.2" fill="white" opacity="0.55"/>
                 <circle cx="6.5" cy="8.5" r="2.2" fill="white" opacity="0.72"/>
               </svg>
             </div>
-            <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.5)', letterSpacing: 0.4, fontFamily: 'var(--font-sans)' }}>
-              {cardUrl ? cardUrl.replace('https://', '') : 'pplai.app/u/—'}
+            <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.6)', letterSpacing: 0.3, fontFamily: 'var(--font-sans)' }}>
+              {cardUrl ? cardUrl.replace('https://', '') : 'Set card URL'}
             </span>
-          </div>
+            <Pencil size={9} color="rgba(255,255,255,0.4)" />
+          </button>
 
           {/* Avatar */}
           <div style={{ position: 'absolute', left: 20, top: 44 }}>
@@ -373,6 +418,48 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
           <Send size={16} /> Share My Card
         </button>
       </div>
+
+      {/* URL edit sheet */}
+      {portalRef.current && createPortal(
+        <>
+          <div
+            onClick={() => setEditingUrl(false)}
+            style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.55)', zIndex:60, pointerEvents: editingUrl ? 'auto' : 'none', opacity: editingUrl ? 1 : 0, transition:'opacity 0.2s' }}
+          />
+          <div style={{ position:'absolute', bottom:0, left:0, right:0, background:'var(--card)', borderRadius:'22px 22px 0 0', padding:'20px 20px 36px', zIndex:61, transform: editingUrl ? 'translateY(0)' : 'translateY(100%)', transition:'transform 0.28s cubic-bezier(0.32,0.72,0,1)', boxShadow:'0 -6px 40px rgba(0,0,0,0.45)' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
+              <span style={{ fontSize:15, fontWeight:600, color:'var(--text-primary)', fontFamily:'var(--font-sans)' }}>Your card URL</span>
+              <button onClick={() => setEditingUrl(false)} style={{ width:28, height:28, borderRadius:'50%', border:'none', background:'var(--elevated)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-secondary)' }}><X size={14}/></button>
+            </div>
+            <div style={{ display:'flex', alignItems:'center', background:'var(--elevated)', border:`1.5px solid ${urlStatus==='available' ? 'var(--green)' : urlStatus==='taken'||urlStatus==='invalid' ? 'var(--coral)' : 'var(--border)'}`, borderRadius:12, overflow:'hidden', height:46 }}>
+              <span style={{ padding:'0 4px 0 14px', fontSize:13, color:'var(--text-muted)', whiteSpace:'nowrap', fontFamily:'var(--font-sans)' }}>pplai.app/u/</span>
+              <input
+                autoFocus
+                value={urlDraft}
+                onChange={e => handleUrlDraftChange(e.target.value)}
+                placeholder="your-username"
+                style={{ flex:1, padding:'0 8px', height:'100%', border:'none', background:'transparent', fontSize:14, fontFamily:'var(--font-sans)', color:'var(--text-primary)', outline:'none', minWidth:0 }}
+              />
+            </div>
+            <div style={{ fontSize:11, color: urlStatus==='available' ? 'var(--green)' : urlStatus==='taken'||urlStatus==='invalid' ? 'var(--coral)' : 'var(--text-muted)', marginTop:6, fontFamily:'var(--font-sans)', minHeight:16 }}>
+              {urlStatus==='available' && '✓ Available'}
+              {urlStatus==='taken' && '✗ Already taken'}
+              {urlStatus==='invalid' && '✗ Min 3 chars: a–z, 0–9, - or _'}
+              {urlStatus==='checking' && 'Checking…'}
+              {!urlStatus && 'Letters, numbers, - and _ only'}
+            </div>
+            <button
+              onClick={saveUrl}
+              disabled={urlStatus !== 'available'}
+              className="btn-primary"
+              style={{ marginTop:14, display:'flex', alignItems:'center', justifyContent:'center', gap:6, opacity: urlStatus==='available' ? 1 : 0.4 }}
+            >
+              <Check size={15}/> Save URL
+            </button>
+          </div>
+        </>,
+        portalRef.current
+      )}
 
       {/* Edit sheet portal */}
       {portalRef.current && createPortal(
