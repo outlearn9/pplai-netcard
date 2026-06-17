@@ -30,7 +30,7 @@ const INITIAL = {
 const BLANK_CARD = (base) => ({
   label: 'Secondary', name: base.name, title: '', company: '',
   email: base.email, phone: '', whatsapp: '', linkedin: '', web: '',
-  seeking: '', offering: '',
+  seeking: base.seeking || '', offering: base.offering || '',
 })
 
 // ─── Validation helpers ──────────────────────────────────────────────────────
@@ -69,14 +69,17 @@ const Field = ({ label, value, onChange }) => (
   </div>
 )
 
-const EmailField = ({ label = 'Email', value, onChange }) => {
+// forceValidate: set to a counter that increments on save attempt — forces touched=true
+const EmailField = ({ label = 'Email', value, onChange, forceValidate = 0, fieldRef }) => {
   const [touched, setTouched] = useState(false)
+  const inputRef = fieldRef || useRef(null)
+  useEffect(() => { if (forceValidate > 0) setTouched(true) }, [forceValidate])
   const result = touched ? validateEmail(value) : null
-  const borderColor = result === 'ok' ? 'var(--green)' : result ? 'var(--coral)' : 'var(--border)'
+  const borderColor = result === 'ok' ? 'var(--green)' : result && result !== 'ok' ? 'var(--coral)' : 'var(--border)'
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 5 }}>{label}</div>
-      <input type="email" value={value} onChange={e => onChange(e.target.value)}
+      <input ref={inputRef} type="email" value={value} onChange={e => onChange(e.target.value)}
         onBlur={() => setTouched(true)}
         style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10, border: `1.5px solid ${borderColor}`, background: 'var(--elevated)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'var(--font-sans)', outline: 'none', transition: 'border-color 0.15s' }}
         onFocus={e => { e.target.style.borderColor = 'var(--indigo)' }}
@@ -86,14 +89,16 @@ const EmailField = ({ label = 'Email', value, onChange }) => {
   )
 }
 
-const UrlField = ({ label = 'Website', value, onChange }) => {
+const UrlField = ({ label = 'Website', value, onChange, forceValidate = 0, fieldRef }) => {
   const [touched, setTouched] = useState(false)
+  const inputRef = fieldRef || useRef(null)
+  useEffect(() => { if (forceValidate > 0) setTouched(true) }, [forceValidate])
   const result = touched ? validateUrl(value) : null
-  const borderColor = result === 'ok' ? 'var(--green)' : result ? 'var(--coral)' : 'var(--border)'
+  const borderColor = result === 'ok' ? 'var(--green)' : result && result !== 'ok' ? 'var(--coral)' : 'var(--border)'
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 5 }}>{label}</div>
-      <input type="url" inputMode="url" value={value} onChange={e => onChange(e.target.value)}
+      <input ref={inputRef} type="url" inputMode="url" value={value} onChange={e => onChange(e.target.value)}
         placeholder="e.g. pplai.co"
         onBlur={() => setTouched(true)}
         style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10, border: `1.5px solid ${borderColor}`, background: 'var(--elevated)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'var(--font-sans)', outline: 'none', transition: 'border-color 0.15s' }}
@@ -104,14 +109,16 @@ const UrlField = ({ label = 'Website', value, onChange }) => {
   )
 }
 
-const LinkedinField = ({ value, onChange }) => {
+const LinkedinField = ({ value, onChange, forceValidate = 0, fieldRef }) => {
   const [touched, setTouched] = useState(false)
+  const inputRef = fieldRef || useRef(null)
+  useEffect(() => { if (forceValidate > 0) setTouched(true) }, [forceValidate])
   const result = touched ? validateLinkedin(value) : null
-  const borderColor = result === 'ok' ? 'var(--green)' : result ? 'var(--coral)' : 'var(--border)'
+  const borderColor = result === 'ok' ? 'var(--green)' : result && result !== 'ok' ? 'var(--coral)' : 'var(--border)'
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 5 }}>LinkedIn</div>
-      <input value={value} onChange={e => onChange(e.target.value)}
+      <input ref={inputRef} value={value} onChange={e => onChange(e.target.value)}
         placeholder="linkedin.com/in/username"
         onBlur={() => setTouched(true)}
         style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10, border: `1.5px solid ${borderColor}`, background: 'var(--elevated)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'var(--font-sans)', outline: 'none', transition: 'border-color 0.15s' }}
@@ -204,16 +211,18 @@ function validatePhone(dialCode, local) {
   return 'ok'
 }
 
-const PhoneField = ({ label = 'Phone number', value, onChange }) => {
+const PhoneField = ({ label = 'Phone number', value, onChange, forceValidate = 0, fieldRef }) => {
   const [open, setOpen]       = useState(false)
   const [search, setSearch]   = useState('')
   const [touched, setTouched] = useState(false)
   const [focused, setFocused] = useState(false)
   const { country, local }    = parsePhone(value)
   const dropRef               = useRef(null)
+  const inputRef              = fieldRef || useRef(null)
+
+  useEffect(() => { if (forceValidate > 0) setTouched(true) }, [forceValidate])
 
   const phoneResult = validatePhone(country.dial, local)
-  // Show validation: after blur, OR if field has a value that's already invalid
   const showHint    = local && (touched || phoneResult !== 'ok')
   const phoneHint   = showHint ? phoneResult : null
   const phoneOk     = phoneResult === 'ok'
@@ -251,6 +260,7 @@ const PhoneField = ({ label = 'Phone number', value, onChange }) => {
           <ChevronDown size={11} color="var(--text-muted)" style={{ transition: 'transform 0.15s', transform: open ? 'rotate(180deg)' : 'none' }} />
         </button>
         <input
+          ref={inputRef}
           type="tel"
           value={local}
           onChange={onLocalChange}
@@ -380,8 +390,10 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
   const [urlStatus, setUrlStatus]       = useState(null)
   const [saveError, setSaveError]         = useState('')
   const [saving, setSaving]               = useState(false)
-  const [extraSaveError, setExtraSaveError] = useState('')
-  const [newCardSaveError, setNewCardSaveError] = useState('')
+  // forceValidate counters — incrementing triggers touched=true in all fields of that sheet
+  const [editForce, setEditForce]           = useState(0)
+  const [extraForce, setExtraForce]         = useState(0)
+  const [newCardForce, setNewCardForce]     = useState(0)
 
   // avatars: index 0 = primary, 1+ = extra cards (empty string = use primary photo)
   const [avatars, setAvatars]           = useState(() => {
@@ -393,6 +405,11 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
 
   const urlCheckTimer = useRef(null)
   const portalRef     = useRef(null)
+
+  // Per-sheet field refs for focus-on-error
+  const editRefs    = { email: useRef(null), phone: useRef(null), whatsapp: useRef(null), linkedin: useRef(null), web: useRef(null) }
+  const extraRefs   = { email: useRef(null), phone: useRef(null), whatsapp: useRef(null), linkedin: useRef(null), web: useRef(null) }
+  const newCardRefs = { email: useRef(null), phone: useRef(null), whatsapp: useRef(null), linkedin: useRef(null), web: useRef(null) }
 
   useEffect(() => { portalRef.current = document.querySelector('.phone-shell') || document.body }, [])
   useEffect(() => {
@@ -471,23 +488,27 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
     else { const d = await r.json(); setUrlStatus(d?.error === 'Username already taken' ? 'taken' : 'invalid') }
   }
 
-  // Validate all contact fields in a card object; returns error string or null
-  const cardErrors = (card) => {
-    const errs = []
-    if (card.email && validateEmail(card.email) !== 'ok') errs.push('Invalid email')
-    if (card.phone) {
-      const { country, local } = parsePhone(card.phone)
-      const r = validatePhone(country.dial, local)
-      if (r && r !== 'ok') errs.push(`Phone: ${r}`)
+  // Returns the key of the first invalid field, or null
+  const firstInvalidField = (card) => {
+    if (card.email && validateEmail(card.email) !== 'ok') return 'email'
+    if (card.phone) { const { country, local } = parsePhone(card.phone); if (validatePhone(country.dial, local) !== 'ok') return 'phone' }
+    if (card.whatsapp) { const { country, local } = parsePhone(card.whatsapp); if (validatePhone(country.dial, local) !== 'ok') return 'whatsapp' }
+    if (card.linkedin && validateLinkedin(card.linkedin) !== 'ok') return 'linkedin'
+    if (card.web && validateUrl(card.web) !== 'ok') return 'web'
+    return null
+  }
+
+  // Trigger validation display + scroll/focus first bad field; returns true if invalid
+  const triggerValidation = (card, refs, setForce) => {
+    setForce(f => f + 1) // forces touched=true in all fields
+    const bad = firstInvalidField(card)
+    if (!bad) return false
+    const el = refs[bad]?.current
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setTimeout(() => el.focus(), 200)
     }
-    if (card.whatsapp) {
-      const { country, local } = parsePhone(card.whatsapp)
-      const r = validatePhone(country.dial, local)
-      if (r && r !== 'ok') errs.push(`WhatsApp: ${r}`)
-    }
-    if (card.linkedin && validateLinkedin(card.linkedin) !== 'ok') errs.push('Invalid LinkedIn URL')
-    if (card.web && validateUrl(card.web) !== 'ok') errs.push('Invalid website URL')
-    return errs.length ? errs.join(' · ') : null
+    return true
   }
 
   // Primary card edit
@@ -495,8 +516,7 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
   const openEdit = () => { setDraft({ ...profile }); setShowEdit(true) }
   const cancelEdit = () => setShowEdit(false)
   const saveEdit = async () => {
-    const err = cardErrors(draft)
-    if (err) { setSaveError(err); return }
+    if (triggerValidation(draft, editRefs, setEditForce)) return
     setSaving(true); setSaveError('')
     setProfile({ ...draft })
     try { localStorage.setItem(PROFILE_KEY, JSON.stringify(draft)) } catch {}
@@ -521,27 +541,25 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
   const setED = (key) => (val) => setExtraDraft(d => ({ ...d, [key]: val }))
   const saveEditExtra = () => {
     if (!extraDraft) return
-    const err = cardErrors(extraDraft)
-    if (err) { setExtraSaveError(err); return }
+    if (triggerValidation(extraDraft, extraRefs, setExtraForce)) return
     const updated = extraCards.map((c, i) => i === activeIdx - 1 ? extraDraft : c)
     setExtraCards(updated); saveExtraCards(updated)
-    setExtraSaveError(''); setShowEditExtra(false)
+    setShowEditExtra(false)
   }
 
   // Extra card operations
-  const openAddCard = () => { setNewCardDraft(BLANK_CARD(profile)); setNewCardAvatar(''); setNewCardSaveError(''); setShowAddCard(true) }
+  const openAddCard = () => { setNewCardDraft(BLANK_CARD(profile)); setNewCardAvatar(''); setShowAddCard(true) }
   const setNC = (key) => (val) => setNewCardDraft(d => ({ ...d, [key]: val }))
   const saveNewCard = () => {
     if (!newCardDraft) return
-    const err = cardErrors(newCardDraft)
-    if (err) { setNewCardSaveError(err); return }
+    if (triggerValidation(newCardDraft, newCardRefs, setNewCardForce)) return
     const newIdx = extraCards.length + 1
     const updated = [...extraCards, newCardDraft]
     setExtraCards(updated); saveExtraCards(updated)
     if (newCardAvatar) saveAvatar(newIdx, newCardAvatar)
     setAvatars(prev => { const next = [...prev]; next[newIdx] = newCardAvatar; return next })
     setActiveIdx(updated.length)
-    setNewCardSaveError(''); setShowAddCard(false)
+    setShowAddCard(false)
   }
   const deleteExtraCard = (idx) => {
     // shift avatars down when a card is removed
@@ -793,18 +811,17 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
 
               <div style={{ height:1, background:'var(--border)', margin:'4px 0 18px' }} />
               <div style={{ fontSize:11, fontWeight:700, color:'var(--text-secondary)', letterSpacing:0.5, textTransform:'uppercase', marginBottom:12 }}>Contact</div>
-              <EmailField value={newCardDraft.email} onChange={setNC('email')} />
-              <PhoneField label="Phone number" value={newCardDraft.phone} onChange={val => { setNC('phone')(val); if (newCardDraft.whatsapp === newCardDraft.phone) setNewCardDraft(d => ({ ...d, phone: val, whatsapp: val })) }} />
-              <PhoneField label="WhatsApp" value={newCardDraft.whatsapp} onChange={setNC('whatsapp')} />
-              <LinkedinField value={newCardDraft.linkedin} onChange={setNC('linkedin')} />
-              <UrlField value={newCardDraft.web} onChange={setNC('web')} />
+              <EmailField value={newCardDraft.email} onChange={setNC('email')} forceValidate={newCardForce} fieldRef={newCardRefs.email} />
+              <PhoneField label="Phone number" value={newCardDraft.phone} onChange={val => { setNC('phone')(val); if (newCardDraft.whatsapp === newCardDraft.phone) setNewCardDraft(d => ({ ...d, phone: val, whatsapp: val })) }} forceValidate={newCardForce} fieldRef={newCardRefs.phone} />
+              <PhoneField label="WhatsApp" value={newCardDraft.whatsapp} onChange={setNC('whatsapp')} forceValidate={newCardForce} fieldRef={newCardRefs.whatsapp} />
+              <LinkedinField value={newCardDraft.linkedin} onChange={setNC('linkedin')} forceValidate={newCardForce} fieldRef={newCardRefs.linkedin} />
+              <UrlField value={newCardDraft.web} onChange={setNC('web')} forceValidate={newCardForce} fieldRef={newCardRefs.web} />
 
               <div style={{ height:1, background:'var(--border)', margin:'4px 0 18px' }} />
               <div style={{ fontSize:11, fontWeight:700, color:'var(--text-secondary)', letterSpacing:0.5, textTransform:'uppercase', marginBottom:12 }}>Networking intent</div>
               <TextArea label="Seeking" value={newCardDraft.seeking} onChange={setNC('seeking')} />
               <TextArea label="Offering" value={newCardDraft.offering} onChange={setNC('offering')} />
 
-              {newCardSaveError && <div style={{ fontSize:12, color:'var(--coral)', background:'rgba(232,90,79,0.08)', borderRadius:8, padding:'8px 12px', marginBottom:8, fontFamily:'var(--font-sans)' }}>{newCardSaveError}</div>}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr', gap:10, marginTop:8 }}>
                 <button onClick={() => setShowAddCard(false)} style={{ padding:'12px 0', borderRadius:12, border:'1px solid var(--border)', background:'transparent', color:'var(--text-secondary)', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'var(--font-sans)' }}>Cancel</button>
                 <button onClick={saveNewCard} style={{ padding:'12px 0', borderRadius:12, border:'none', background:'var(--indigo)', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'var(--font-sans)' }}>Save Card</button>
@@ -845,8 +862,8 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
             <div style={{ height:1, background:'var(--border)', margin:'4px 0 18px' }} />
 
             <div style={{ fontSize:11, fontWeight:700, color:'var(--text-secondary)', letterSpacing:0.5, textTransform:'uppercase', marginBottom:12 }}>Contact</div>
-            <EmailField value={draft.email} onChange={set('email')} />
-            <PhoneField label="Phone number" value={draft.phone} onChange={val => { set('phone')(val); if (waSameAsPhone) setDraft(d => ({ ...d, phone: val, whatsapp: val })) }} />
+            <EmailField value={draft.email} onChange={set('email')} forceValidate={editForce} fieldRef={editRefs.email} />
+            <PhoneField label="Phone number" value={draft.phone} onChange={val => { set('phone')(val); if (waSameAsPhone) setDraft(d => ({ ...d, phone: val, whatsapp: val })) }} forceValidate={editForce} fieldRef={editRefs.phone} />
             <div style={{ marginBottom:14 }}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:5 }}>
                 <div style={{ fontSize:10, fontWeight:700, color:'var(--text-secondary)', letterSpacing:0.5, textTransform:'uppercase' }}>WhatsApp</div>
@@ -857,11 +874,11 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
               </div>
               {waSameAsPhone
                 ? <div style={{ padding:'10px 12px', borderRadius:10, border:'1.5px solid var(--border)', background:'var(--border)', color:'var(--text-secondary)', fontSize:13, fontFamily:'var(--font-sans)', opacity:0.7 }}>{draft.whatsapp || '—'}</div>
-                : <PhoneField label="" value={draft.whatsapp} onChange={val => { setWaSameAsPhone(false); set('whatsapp')(val) }} />
+                : <PhoneField label="" value={draft.whatsapp} onChange={val => { setWaSameAsPhone(false); set('whatsapp')(val) }} forceValidate={editForce} fieldRef={editRefs.whatsapp} />
               }
             </div>
-            <LinkedinField value={draft.linkedin} onChange={set('linkedin')} />
-            <UrlField value={draft.web} onChange={set('web')} />
+            <LinkedinField value={draft.linkedin} onChange={set('linkedin')} forceValidate={editForce} fieldRef={editRefs.linkedin} />
+            <UrlField value={draft.web} onChange={set('web')} forceValidate={editForce} fieldRef={editRefs.web} />
             <div style={{ height:1, background:'var(--border)', margin:'4px 0 18px' }} />
 
             <div style={{ fontSize:11, fontWeight:700, color:'var(--text-secondary)', letterSpacing:0.5, textTransform:'uppercase', marginBottom:12 }}>Networking intent</div>
@@ -913,18 +930,17 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
 
               <div style={{ height:1, background:'var(--border)', margin:'4px 0 18px' }} />
               <div style={{ fontSize:11, fontWeight:700, color:'var(--text-secondary)', letterSpacing:0.5, textTransform:'uppercase', marginBottom:12 }}>Contact</div>
-              <EmailField value={extraDraft.email} onChange={setED('email')} />
-              <PhoneField label="Phone number" value={extraDraft.phone} onChange={setED('phone')} />
-              <PhoneField label="WhatsApp" value={extraDraft.whatsapp} onChange={setED('whatsapp')} />
-              <LinkedinField value={extraDraft.linkedin} onChange={setED('linkedin')} />
-              <UrlField value={extraDraft.web} onChange={setED('web')} />
+              <EmailField value={extraDraft.email} onChange={setED('email')} forceValidate={extraForce} fieldRef={extraRefs.email} />
+              <PhoneField label="Phone number" value={extraDraft.phone} onChange={setED('phone')} forceValidate={extraForce} fieldRef={extraRefs.phone} />
+              <PhoneField label="WhatsApp" value={extraDraft.whatsapp} onChange={setED('whatsapp')} forceValidate={extraForce} fieldRef={extraRefs.whatsapp} />
+              <LinkedinField value={extraDraft.linkedin} onChange={setED('linkedin')} forceValidate={extraForce} fieldRef={extraRefs.linkedin} />
+              <UrlField value={extraDraft.web} onChange={setED('web')} forceValidate={extraForce} fieldRef={extraRefs.web} />
 
               <div style={{ height:1, background:'var(--border)', margin:'4px 0 18px' }} />
               <div style={{ fontSize:11, fontWeight:700, color:'var(--text-secondary)', letterSpacing:0.5, textTransform:'uppercase', marginBottom:12 }}>Networking intent</div>
               <TextArea label="Seeking" value={extraDraft.seeking} onChange={setED('seeking')} />
               <TextArea label="Offering" value={extraDraft.offering} onChange={setED('offering')} />
 
-              {extraSaveError && <div style={{ fontSize:12, color:'var(--coral)', background:'rgba(232,90,79,0.08)', borderRadius:8, padding:'8px 12px', marginBottom:8, fontFamily:'var(--font-sans)' }}>{extraSaveError}</div>}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr', gap:10, marginTop:8 }}>
                 <button onClick={() => setShowEditExtra(false)} style={{ padding:'12px 0', borderRadius:12, border:'1px solid var(--border)', background:'transparent', color:'var(--text-secondary)', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'var(--font-sans)' }}>Cancel</button>
                 <button onClick={saveEditExtra} style={{ padding:'12px 0', borderRadius:12, border:'none', background:'var(--indigo)', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'var(--font-sans)' }}>Save Changes</button>
