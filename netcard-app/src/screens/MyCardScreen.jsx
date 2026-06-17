@@ -566,8 +566,7 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
         )}
 
         {/* Hero Card */}
-        <div style={{ borderRadius: 28, overflow: 'hidden', position: 'relative', height: 230, background: 'linear-gradient(145deg, #2D2F6B 0%, #3D3080 45%, #252560 100%)', boxShadow: '0 20px 60px rgba(45,47,107,0.45), 0 0 0 1px rgba(255,255,255,0.10)' }}>
-          {/* Glow blobs */}
+        <div style={{ borderRadius: 28, overflow: 'hidden', position: 'relative', height: 210, background: 'linear-gradient(145deg, #2D2F6B 0%, #3D3080 45%, #252560 100%)', boxShadow: '0 20px 60px rgba(45,47,107,0.45), 0 0 0 1px rgba(255,255,255,0.10)' }}>
           <div style={{ position: 'absolute', top: -40, left: -30, width: 200, height: 200, borderRadius: '50%', background: 'radial-gradient(circle, rgba(129,140,248,0.5) 0%, transparent 70%)', filter: 'blur(32px)', pointerEvents: 'none' }} />
           <div style={{ position: 'absolute', bottom: -50, right: 40, width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle, rgba(168,85,247,0.4) 0%, transparent 70%)', filter: 'blur(28px)', pointerEvents: 'none' }} />
           <div style={{ position: 'absolute', top: 20, right: -20, width: 140, height: 140, borderRadius: '50%', background: 'radial-gradient(circle, rgba(99,102,241,0.35) 0%, transparent 70%)', filter: 'blur(24px)', pointerEvents: 'none' }} />
@@ -591,31 +590,33 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
             </div>
           )}
 
-          {/* Avatar — larger, vertically centred on left */}
-          <div style={{ position: 'absolute', left: 18, top: '50%', transform: 'translateY(-30%)', width: 80, height: 80, borderRadius: '50%', border: '2.5px solid rgba(255,255,255,0.25)', background: 'linear-gradient(135deg, rgba(99,102,241,0.6), rgba(168,85,247,0.6))', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backdropFilter: 'blur(8px)', boxShadow: '0 4px 20px rgba(0,0,0,0.35)' }}>
-            {activeAvatar
-              ? <img src={activeAvatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              : <span style={{ fontFamily: 'var(--font-sans)', fontSize: 26, fontWeight: 700, color: '#fff', letterSpacing: -0.5 }}>{initials}</span>}
+          {/* Avatar — 72px, same top-left position as original */}
+          <div style={{ position: 'absolute', left: 20, top: 40 }}>
+            <div style={{ width: 72, height: 72, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.2)', background: 'linear-gradient(135deg, rgba(99,102,241,0.6), rgba(168,85,247,0.6))', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backdropFilter: 'blur(8px)' }}>
+              {activeAvatar
+                ? <img src={activeAvatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <span style={{ fontFamily: 'var(--font-sans)', fontSize: 24, fontWeight: 700, color: '#fff', letterSpacing: -0.5 }}>{initials}</span>}
+            </div>
           </div>
 
-          {/* Name & title — offset to not overlap avatar */}
-          <div style={{ position: 'absolute', left: 116, bottom: 18, right: 110 }}>
-            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 600, color: '#fff', letterSpacing: -0.5, lineHeight: 1.15, textShadow: '0 2px 12px rgba(0,0,0,0.4)' }}>{activeCard?.name}</div>
-            <div style={{ fontSize: 11.5, fontWeight: 500, color: 'rgba(255,255,255,0.65)', marginTop: 3, fontFamily: 'var(--font-sans)' }}>{activeCard?.title}</div>
+          {/* Name & title */}
+          <div style={{ position: 'absolute', left: 20, bottom: 16 }}>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 600, color: '#fff', letterSpacing: -0.6, lineHeight: 1.15, textShadow: '0 2px 12px rgba(0,0,0,0.4)' }}>{activeCard?.name}</div>
+            <div style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,0.65)', marginTop: 3, fontFamily: 'var(--font-sans)' }}>{activeCard?.title}</div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', marginTop: 1, fontFamily: 'var(--font-sans)', letterSpacing: 0.2 }}>{activeCard?.company}</div>
           </div>
 
           {/* QR */}
-          <div style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-            <div style={{ background: 'rgba(255,255,255,0.97)', borderRadius: 12, padding: 8, boxShadow: '0 4px 24px rgba(0,0,0,0.3)' }}>
-              <svg width="78" height="78" viewBox="0 0 90 90" fill="none">
+          <div style={{ position: 'absolute', right: 18, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7 }}>
+            <div style={{ background: 'rgba(255,255,255,0.97)', borderRadius: 14, padding: 10, boxShadow: '0 4px 24px rgba(0,0,0,0.3)' }}>
+              <svg width="90" height="90" viewBox="0 0 90 90" fill="none">
                 <rect x="2" y="2" width="28" height="28" rx="4" fill="#2D2F6B"/><rect x="7" y="7" width="18" height="18" rx="2" fill="white"/><rect x="11" y="11" width="10" height="10" rx="1" fill="#2D2F6B"/>
                 <rect x="60" y="2" width="28" height="28" rx="4" fill="#2D2F6B"/><rect x="65" y="7" width="18" height="18" rx="2" fill="white"/><rect x="69" y="11" width="10" height="10" rx="1" fill="#2D2F6B"/>
                 <rect x="2" y="60" width="28" height="28" rx="4" fill="#2D2F6B"/><rect x="7" y="65" width="18" height="18" rx="2" fill="white"/><rect x="11" y="69" width="10" height="10" rx="1" fill="#2D2F6B"/>
                 {[36,42,48,54,60,66,72,78].flatMap((x,xi) => [36,42,48,54,60,66,72,78].map((y,yi) => (xi+yi)%2===0 && !(x<34&&y<34) && !(x>58&&y<34) && !(x<34&&y>58) ? <rect key={`${x}${y}`} x={x} y={y} width="5" height="5" rx="1" fill="#2D2F6B"/> : null))}
               </svg>
             </div>
-            <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.5)', fontWeight: 600, letterSpacing: 0.5, fontFamily: 'var(--font-sans)', textTransform: 'uppercase' }}>Scan</span>
+            <span style={{ fontSize: 8.5, color: 'rgba(255,255,255,0.5)', fontWeight: 600, letterSpacing: 0.5, fontFamily: 'var(--font-sans)', textTransform: 'uppercase' }}>Scan to connect</span>
           </div>
 
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, transparent, rgba(165,180,252,0.6), rgba(192,132,252,0.6), transparent)' }} />
