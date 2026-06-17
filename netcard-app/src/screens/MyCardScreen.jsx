@@ -413,7 +413,10 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
 
   const activeCard = activeIdx === 0 ? profile : extraCards[activeIdx - 1]
   const allCards   = [{ ...profile, label: 'Primary' }, ...extraCards]
-  const cardUrl    = username ? `https://pplai.app/u/${username}` : ''
+  const baseUrl    = username ? `https://pplai.app/u/${username}` : ''
+  // Each secondary card appends ?card=<slug> for per-card tracking
+  const cardSlug   = activeIdx > 0 ? (activeCard?.label || `card-${activeIdx}`).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : ''
+  const cardUrl    = activeIdx === 0 ? baseUrl : (baseUrl ? `${baseUrl}?card=${cardSlug}` : '')
   // Secondary cards fall back to the primary avatar when no card-specific photo is set
   const primaryAvatar = avatars[0] || ''
   const activeAvatar  = avatars[activeIdx] || primaryAvatar
@@ -595,9 +598,16 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
             <div style={{ width: 20, height: 20, borderRadius: 5, background: 'linear-gradient(135deg,#6366F1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><circle cx="4" cy="4" r="2.2" fill="white" opacity="0.9"/><circle cx="8.5" cy="4" r="2.2" fill="white" opacity="0.55"/><circle cx="6.5" cy="8.5" r="2.2" fill="white" opacity="0.72"/></svg>
             </div>
-            <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.6)', letterSpacing: 0.3, fontFamily: 'var(--font-sans)' }}>
-              {cardUrl ? cardUrl.replace('https://', '') : 'Set card URL'}
-            </span>
+            {activeIdx === 0 ? (
+              <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.6)', letterSpacing: 0.3, fontFamily: 'var(--font-sans)' }}>
+                {cardUrl ? cardUrl.replace('https://', '') : 'Set card URL'}
+              </span>
+            ) : (
+              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.3, fontFamily: 'var(--font-sans)' }}>
+                <span style={{ color: 'rgba(255,255,255,0.6)' }}>{baseUrl ? baseUrl.replace('https://', '') : 'Set card URL'}</span>
+                {cardSlug && <span style={{ color: 'rgba(165,180,252,0.8)' }}>?card={cardSlug}</span>}
+              </span>
+            )}
             <Pencil size={9} color="rgba(255,255,255,0.4)" />
           </button>
 
@@ -689,7 +699,10 @@ export default function MyCardScreen({ navigate, onMenuOpen, incompleteFields = 
           <div style={{ position:'absolute', bottom:0, left:0, right:0, background:'var(--card)', borderRadius:'22px 22px 0 0', padding:'20px 20px 36px', zIndex:61, transform: editingUrl ? 'translateY(0)' : 'translateY(100%)', transition:'transform 0.28s cubic-bezier(0.32,0.72,0,1)', boxShadow:'0 -6px 40px rgba(0,0,0,0.45)' }}>
             {editingUrl && <>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
-                <span style={{ fontSize:15, fontWeight:600, color:'var(--text-primary)', fontFamily:'var(--font-sans)' }}>Your card URL</span>
+                <div>
+                  <span style={{ fontSize:15, fontWeight:600, color:'var(--text-primary)', fontFamily:'var(--font-sans)' }}>Base card URL</span>
+                  <div style={{ fontSize:11, color:'var(--text-muted)', fontFamily:'var(--font-sans)', marginTop:2 }}>Shared across all your cards · each card appends ?card=slug</div>
+                </div>
                 <button onClick={() => setEditingUrl(false)} style={{ width:28, height:28, borderRadius:'50%', border:'none', background:'var(--elevated)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-secondary)' }}><X size={14}/></button>
               </div>
               <div style={{ display:'flex', alignItems:'center', background:'var(--elevated)', border:`1.5px solid ${urlStatus==='available' ? 'var(--green)' : urlStatus==='taken'||urlStatus==='invalid' ? 'var(--coral)' : 'var(--border)'}`, borderRadius:12, overflow:'hidden', height:46 }}>
