@@ -420,11 +420,21 @@ export default function App() {
             setAuthed(true)
             setSessionChecked(true)
           })
+        } else if (r.status === 401) {
+          // JWT rejected — could be wrong env (dev vs prod secret) or truly expired.
+          // Trust the local flag so users aren't logged out just because backends differ.
+          const trusted = !!localStorage.getItem('netcard_authed')
+          if (!trusted) {
+            localStorage.removeItem('netcard_jwt')
+            setAuthed(false)
+          } else {
+            setAuthed(true)
+          }
+          setSessionChecked(true)
         } else {
-          // Token invalid or expired
-          localStorage.removeItem('netcard_jwt')
-          localStorage.removeItem('netcard_authed')
-          setAuthed(false)
+          // Other server error — trust local flag
+          const trusted = !!localStorage.getItem('netcard_authed')
+          setAuthed(trusted)
           setSessionChecked(true)
         }
       })
